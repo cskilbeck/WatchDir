@@ -7,5 +7,5 @@
 ; SIZE
 ; LAST_WRITE
 ; SECURITY
-c:\temp, FILE_NAME + DIR_NAME + ATTRIBUTES + SIZE   + SECURITY, recursive, c:\bin\upload
+c:\temp, FILE_NAME + DIR_NAME + LAST_WRITE, recursive, cmd /c dir
 
