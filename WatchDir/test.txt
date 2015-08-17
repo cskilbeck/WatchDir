@@ -1,0 +1,11 @@
+;comment
+;dir, conditions, recursive, action
+;conditions (separated by +):
+; FILE_NAME
+; DIR_NAME
+; ATTRIBUTES
+; SIZE
+; LAST_WRITE
+; SECURITY
+c:\temp, FILE_NAME + DIR_NAME + ATTRIBUTES + SIZE   + SECURITY, recursive, c:\bin\upload
+
