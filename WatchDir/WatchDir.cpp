@@ -110,111 +110,215 @@ struct Watcher
 	HANDLE handle;
 	string command;
 	string folder;
+	BOOL recurse;
+	DWORD flags;
 
-	Watcher(HANDLE h, string cmd, string fldr)
-		: handle(h)
-		, command(cmd)
-		, folder(fldr)
+	//////////////////////////////////////////////////////////////////////
+
+	Watcher(string cmd, string fldr, BOOL recurse, DWORD flags)
+		: handle(INVALID_HANDLE_VALUE)
+		, command(trim(cmd))
+		, folder(trim(fldr))
+		, recurse(recurse)
+		, flags(flags)
 	{
 	}
-};
 
-int main()
-{
-	vector<HANDLE> handles;
-	vector<Watcher> watchers;
-	string s;
-	int line = 0;
-	while(std::getline(std::cin, s))
+	//////////////////////////////////////////////////////////////////////
+
+	bool IsValid() const
 	{
-		vector<string> tokens;
-		tokenize(s, tokens, ",", true);
-		if(tokens.size() == 4)
+		return handle != INVALID_HANDLE_VALUE;
+	}
+
+	//////////////////////////////////////////////////////////////////////
+
+	BOOL Watch()
+	{
+		handle = FindFirstChangeNotification(folder.c_str(), recurse, flags);
+		if (handle == INVALID_HANDLE_VALUE)
 		{
-			DWORD flags = 0;
-			vector<string> conditions;
-			tokenize(tokens[1], conditions, "+", true);
-			for(auto const &condition : conditions)
-			{
-				auto c = std::find(condition_defs.begin(), condition_defs.end(), condition);
-				if(c < condition_defs.end())
-				{
-					flags += c->flag;
-				}
-				else
-				{
-					std::cerr << "Unknown flag " << condition << " at line " << line << std::endl;
-				}
-			}
-			if(flags == 0)
-			{
-				std::cerr << "No known flags on line " << line << std::endl;
-			}
-			else
-			{
-				string rc = trim(tokens[2]);
-				BOOL recurse = _stricmp(rc.c_str(), "true") == 0 || _stricmp(rc.c_str(), "recursive") == 0;
-				HANDLE h = FindFirstChangeNotification(tokens[0].c_str(), recurse, flags);
-				if(h == INVALID_HANDLE_VALUE)
-				{
-					std::cerr << "Error watching folder " << tokens[0] << " Error: " << GetLastError() << std::endl;
-				}
-				else
-				{
-					std::cout << "Folder: " << tokens[0]
-						<< " Conditions: " << flags
-						<< " Recurse: " << recurse
-						<< " Action: " << tokens[3]
-						<< std::endl;
-					handles.push_back(h);
-					watchers.push_back(Watcher(h, trim(tokens[3]), tokens[0]));
-				}
-			}
+			std::cerr << "Error watching folder " << folder << " Error: " << GetLastError() << std::endl;
+			return FALSE;
 		}
 		else
 		{
-			std::cerr << "Bad input at line " << line << std::endl;
+			std::cout << "Folder: " << folder
+				<< " Conditions: " << flags
+				<< " Recurse: " << recurse
+				<< " Action: " << command
+				<< std::endl;
+			return TRUE;
 		}
-		++line;
 	}
-	if(handles.empty())
+
+	//////////////////////////////////////////////////////////////////////
+
+	~Watcher()
+	{
+		if (handle != INVALID_HANDLE_VALUE)
+		{
+			FindCloseChangeNotification(handle);
+			handle = INVALID_HANDLE_VALUE;
+		}
+	}
+
+	//////////////////////////////////////////////////////////////////////
+
+	void Exec() const
+	{
+		vector<char> cmd(command.size() + 1);
+		memcpy(cmd.data(), command.c_str(), command.size());
+		cmd[cmd.size() - 1] = 0;
+		STARTUPINFO si = { 0 };
+		PROCESS_INFORMATION pi = { 0 };
+		si.cb = sizeof(si);
+		BOOL b = CreateProcess(NULL, cmd.data(), NULL, NULL, TRUE, 0, NULL, folder.c_str(), &si, &pi);
+		if (b == NULL)
+		{
+			std::cerr << "Error creating process " << command << " Error: " << GetLastError() << std::endl;
+		}
+		else
+		{
+			std::cout << "Spawned " << command << std::endl;
+			WaitForSingleObject(pi.hProcess, INFINITE);
+			std::cout << "Completed " << command << std::endl;
+		}
+		if (!FindNextChangeNotification(handle))
+		{
+			std::cerr << "Error re-watching " << folder << " Error: " << GetLastError() << std::endl;
+		}
+	}
+};
+
+//////////////////////////////////////////////////////////////////////
+
+struct WatcherList
+{
+	vector<HANDLE> handles;
+	vector<Watcher> watchers;
+
+	//////////////////////////////////////////////////////////////////////
+
+	void Add(string const &folder, string const &command, BOOL recurse, DWORD flags)
+	{
+		watchers.push_back(Watcher(command, folder, recurse, flags));
+	}
+
+	//////////////////////////////////////////////////////////////////////
+
+	void ReadInput()
+	{
+		string s;
+		int line = 0;
+		while (std::getline(std::cin, s))
+		{
+			vector<string> tokens;
+			tokenize(s, tokens, ",", true);
+			if (tokens.size() == 4)
+			{
+				DWORD flags = 0;
+				vector<string> conditions;
+				tokenize(tokens[1], conditions, "+", true);
+				for (auto const &condition : conditions)
+				{
+					auto c = std::find(condition_defs.begin(), condition_defs.end(), condition);
+					if (c < condition_defs.end())
+					{
+						flags += c->flag;
+					}
+					else
+					{
+						std::cerr << "Unknown flag " << condition << " at line " << line << std::endl;
+					}
+				}
+				if (flags == 0)
+				{
+					std::cerr << "No known flags on line " << line << std::endl;
+				}
+				else
+				{
+					string rc = trim(tokens[2]);
+					BOOL recurse = _stricmp(rc.c_str(), "true") == 0 || _stricmp(rc.c_str(), "recursive") == 0;
+					Add(tokens[0], tokens[3], recurse, flags);
+				}
+			}
+			else
+			{
+				std::cerr << "Bad input at line " << line << std::endl;
+			}
+			++line;
+		}
+	}
+
+	//////////////////////////////////////////////////////////////////////
+
+	void StartWatching()
+	{
+		for (auto &w : watchers)
+		{
+			if (w.Watch())
+			{
+				handles.push_back(w.handle);
+			}
+		}
+	}
+
+	//////////////////////////////////////////////////////////////////////
+
+	void WaitAndExec()
+	{
+		DWORD hit = WaitForMultipleObjects((DWORD)Count(), handles.data(), FALSE, INFINITE);
+		if (hit < WAIT_OBJECT_0 || hit >= WAIT_OBJECT_0 + Count())
+		{
+			std::cerr << "Error waiting for folder changes " << GetLastError() << " continuing to wait..." << std::endl;
+		}
+		else
+		{
+			Watcher const &w = watchers[hit - WAIT_OBJECT_0];
+			std::cout << "Change detected in folder " << w.folder << std::endl;
+			w.Exec();
+		}
+	}
+
+	//////////////////////////////////////////////////////////////////////
+
+	~WatcherList()
+	{
+		watchers.clear();
+		handles.clear();
+	}
+
+	//////////////////////////////////////////////////////////////////////
+
+	int Count()
+	{
+		return (int)watchers.size();
+	}
+};
+
+//////////////////////////////////////////////////////////////////////
+
+WatcherList watchers;
+
+//////////////////////////////////////////////////////////////////////
+
+int main()
+{
+	watchers.ReadInput();
+
+	if(watchers.Count() == 0)
 	{
 		std::cerr << "No folders to watch, exiting..." << std::endl;
 	}
 	else
 	{
-		std::cout << "Waiting for activity on " << handles.size() << " folders" << std::endl;
+		std::cout << "Waiting for activity on " << watchers.Count() << " folders" << std::endl;
+		watchers.StartWatching();
 		while(true)
 		{
-			DWORD hit = WaitForMultipleObjects((DWORD)handles.size(), handles.data(), FALSE, INFINITE);
-			if(hit == WAIT_TIMEOUT || hit < WAIT_OBJECT_0 || hit >= WAIT_OBJECT_0 + handles.size())
-			{
-				std::cerr << "Error waiting for folder changes " << GetLastError() << " continuing to wait..." << std::endl;
-			}
-			// execute the appropriate command
-			Watcher const &w = watchers[hit - WAIT_OBJECT_0];
-			vector<char> cmd(w.command.size() + 1);
-			memcpy(cmd.data(), w.command.c_str(), w.command.size());
-			cmd[cmd.size() - 1] = 0;
-			STARTUPINFO si = { 0 };
-			PROCESS_INFORMATION pi = { 0 };
-			si.cb = sizeof(si);
-			BOOL b = CreateProcess(NULL, cmd.data(), NULL, NULL, TRUE, 0, NULL, w.folder.c_str(), &si, &pi);
-			if(!b)
-			{
-				std::cerr << "Error creating process " << w.command << " Error: " << GetLastError() << std::endl;
-			}
-			else
-			{
-				std::cout << "Spawned " << w.command << std::endl;
-			}
-			WaitForSingleObject(pi.hProcess, INFINITE);
-			if(!FindNextChangeNotification(w.handle))
-			{
-				std::cerr << "Error re-watching " << w.folder << " Error: " << GetLastError() << std::endl;
-			}
+			watchers.WaitAndExec();
 		}
 	}
-	getchar();
 	return 0;
 }
