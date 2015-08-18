@@ -19,5 +19,18 @@
 #include <cctype>
 #include <functional>
 #include <algorithm>
+#include <map>
 
 #include <Windows.h>
+
+using string = std::wstring;
+using wchar = wchar_t;
+template<typename T> using vector = std::vector<T>;
+using nameMap = std::map<DWORD, string>;
+using byte = UINT8;
+
+
+#include "Util.h"
+#include "Condition.h"
+#include "Watcher.h"
+#include "WatcherList.h"

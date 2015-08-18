@@ -1,0 +1,1 @@
+echo ., FILE_NAME + DIR_NAME + LAST_WRITE, recursive, cmd /c autohotkey %HOMEPATH%\Documents\RefreshChrome.ahk | WatchDir.exe
