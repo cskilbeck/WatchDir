@@ -60,22 +60,28 @@ struct Watcher
 
 	//////////////////////////////////////////////////////////////////////
 
-	void OnChange(DWORD error, DWORD numBytes, LPOVERLAPPED overlappedPtr)
+	void OnChange(DWORD errorCode, DWORD numBytes, LPOVERLAPPED overlappedPtr)
 	{
-		if (error != ERROR_SUCCESS)
+		if (errorCode != ERROR_SUCCESS)
 		{
-			std::wcerr << "Error " << error << ", stopping watching " << folder << std::endl;
+			error(L"Error %d stopping watching %s\n", errorCode, folder.c_str());
 		}
 		else
 		{
+			wprintf(L"Activity detected:\n");
 			FILE_NOTIFY_INFORMATION *f = (FILE_NOTIFY_INFORMATION *)(buffer);
-			while (f->NextEntryOffset != 0)
+			DWORD offset;
+			int n = 0;
+			do
 			{
+				++n;
+				offset = f->NextEntryOffset;
 				string filename(f->FileName, (size_t)f->FileNameLength);
 				string change = GetChangeName(f->Action);
-				std::wcout << change << " occurred on " << filename << std::endl;
-				f = (FILE_NOTIFY_INFORMATION *)(((byte *)f) + f->NextEntryOffset);
-			}
+				wprintf(L"%s occurred on %s\n", change.c_str(), filename.c_str());
+				f = (FILE_NOTIFY_INFORMATION *)((byte *)f + offset);
+			} while (offset != 0);
+			wprintf(L"%d events processed\n", n);
 			Read();
 		}
 	}
@@ -84,11 +90,11 @@ struct Watcher
 
 	BOOL Read()
 	{
+		DWORD bytesGot = 0;
 		overlapped = { 0 };
 		overlapped.hEvent = (HANDLE)this;
-		if (!ReadDirectoryChangesW(dirHandle, (LPVOID)buffer, sizeof(buffer), recurse, flags, NULL, &overlapped, ChangeOccurred))
+		if (!ReadDirectoryChangesW(dirHandle, (LPVOID)buffer, sizeof(buffer), recurse, flags, &bytesGot, &overlapped, &ChangeOccurred))
 		{
-			Close();
 			return FALSE;
 		}
 		return TRUE;
@@ -98,24 +104,21 @@ struct Watcher
 
 	BOOL Watch()
 	{
-		dirHandle = CreateFile(folder.c_str(), GENERIC_READ, FILE_LIST_DIRECTORY | FILE_SHARE_DELETE | FILE_SHARE_READ | FILE_SHARE_WRITE, NULL, OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OVERLAPPED, NULL);
+		dirHandle = CreateFile(folder.c_str(), FILE_LIST_DIRECTORY, FILE_SHARE_DELETE | FILE_SHARE_READ | FILE_SHARE_WRITE, NULL, OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OVERLAPPED, NULL);
 		if (dirHandle == INVALID_HANDLE_VALUE)
 		{
+			error(L"Error opening handle to %s : %s\n", folder.c_str(), GetLastErrorText().c_str());
 			return FALSE;
 		}
 		if (!Read())
 		{
 			Close();
-			std::wcerr << "Error watching folder " << folder << " Error: " << GetLastError() << std::endl;
+			error(L"Error watching folder %s : %s\n", folder.c_str(), GetLastErrorText().c_str());
 			return FALSE;
 		}
 		else
 		{
-			std::wcout << "Folder: " << folder
-				<< " Conditions: " << flags
-				<< " Recurse: " << recurse
-				<< " Action: " << command
-				<< std::endl;
+			wprintf(L"Folder: %s, Conditions: %04x, Recurse: %s, Action: %s\n", folder.c_str(), flags, recurse ? L"Yes" : L"No", command.c_str());
 			return TRUE;
 		}
 	}
@@ -124,7 +127,8 @@ struct Watcher
 
 	void Close()
 	{
-		if (dirHandle != INVALID_HANDLE_VALUE) {
+		if (dirHandle != INVALID_HANDLE_VALUE)
+		{
 			CloseHandle(dirHandle);
 			dirHandle = INVALID_HANDLE_VALUE;
 		}
@@ -147,24 +151,24 @@ struct Watcher
 
 	void Exec() const
 	{
-		vector<wchar> cmd(command.size() + 1);
-		memcpy(cmd.data(), command.c_str(), command.size() * sizeof(wchar));
+		vector<string::value_type> cmd(command.size() + 1);
+		memcpy(cmd.data(), command.c_str(), command.size() * sizeof(string::value_type));
 		cmd[cmd.size() - 1] = 0;
 		STARTUPINFO si = { 0 };
 		PROCESS_INFORMATION pi = { 0 };
 		si.cb = sizeof(si);
+		wprintf(L"Spawning %s\n", command.c_str());
 		BOOL b = CreateProcessW(NULL, cmd.data(), NULL, NULL, TRUE, 0, NULL, folder.c_str(), &si, &pi);
 		if (b == NULL)
 		{
-			std::wcerr << "Error creating process " << command << " Error: " << GetLastError() << std::endl;
+			error(L"Error creating process %s, Error: %s\n", command.c_str(), GetLastErrorText().c_str());
 		}
 		else
 		{
-			std::wcout << "Spawned " << command << std::endl;
 			WaitForSingleObject(pi.hProcess, INFINITE);
-			std::wcout << "Completed " << command << std::endl;
+			wprintf(L"Completed %s\n", command);
 		}
 	}
 };
 
-// C:\Temp, FILE_NAME + DIR_NAME + LAST_WRITE, recursive, cmd /c dir
+// C:\Temp, FILE_NAME + DIR_NAME + ATTRIBUTES + SIZE + LAST_WRITE + SECURITY + CREATION, recursive, cmd /c dir

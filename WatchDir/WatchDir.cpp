@@ -10,7 +10,9 @@ int main()
 	{
 		if (watchers.StartWatching())
 		{
-			Sleep(INFINITE);
+			while (MsgWaitForMultipleObjectsEx(0, NULL, INFINITE, QS_ALLINPUT, MWMO_ALERTABLE) == WAIT_IO_COMPLETION)
+			{
+			}
 		}
 	}
 	return 0;

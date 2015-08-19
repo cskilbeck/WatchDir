@@ -36,16 +36,16 @@ struct WatcherList
 					auto c = std::find(condition_defs.begin(), condition_defs.end(), condition);
 					if (c < condition_defs.end())
 					{
-						flags += c->flag;
+						flags |= c->flag;
 					}
 					else
 					{
-						std::wcerr << "Unknown flag " << condition << " at line " << line << std::endl;
+						error(L"Unknown flag %s at line %d\n", condition.c_str(), line);
 					}
 				}
 				if (flags == 0)
 				{
-					std::wcerr << "No known flags on line " << line << std::endl;
+					error(L"No known flags on line %d\n", line);
 				}
 				else
 				{
@@ -56,13 +56,13 @@ struct WatcherList
 			}
 			else
 			{
-				std::cerr << "Bad input at line " << line << std::endl;
+				error(L"Bad input at line %d\n", line);
 			}
 			++line;
 		}
 		if (Count() == 0)
 		{
-			std::cerr << "No folders to watch, exiting..." << std::endl;
+			error(L"No folders to watch, exiting...\n");
 			return false;
 		}
 		return true;
@@ -72,7 +72,7 @@ struct WatcherList
 
 	bool StartWatching()
 	{
-		std::cout << "Waiting for activity on " << Count() << " folders" << std::endl;
+		wprintf(L"Waiting for activity on %d folders\n", Count());
 		int n = 0;
 		for (auto &w : watchers)
 		{
@@ -91,12 +91,12 @@ struct WatcherList
 		DWORD hit = WaitForMultipleObjects((DWORD)Count(), handles.data(), FALSE, INFINITE);
 		if (hit < WAIT_OBJECT_0 || hit >= WAIT_OBJECT_0 + Count())
 		{
-			std::cerr << "Error waiting for folder changes " << GetLastError() << " continuing to wait..." << std::endl;
+			error(L"Error waiting for folder changes: %s (continuing to wait...)\n", GetLastErrorText().c_str());
 		}
 		else
 		{
 			Watcher const &w = watchers[hit - WAIT_OBJECT_0];
-			std::wcout << "Change detected in folder " << w.folder << std::endl;
+			wprintf(L"Change detected in folder %s\n", w.folder.c_str());
 			w.Exec();
 		}
 	}

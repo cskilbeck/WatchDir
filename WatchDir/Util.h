@@ -74,4 +74,28 @@ static inline string trim(string const &s)
 	return s.substr(b - s.begin(), e.base() - b);
 }
 
+//////////////////////////////////////////////////////////////////////
 
+static inline string GetLastErrorText(DWORD err = 0)
+{
+	LPTSTR lpMsgBuf;
+	FormatMessage(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
+		NULL,
+		err ? err : GetLastError(),
+		MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
+		(LPTSTR)&lpMsgBuf,
+		0, NULL);
+
+	string r(lpMsgBuf);
+	LocalFree(lpMsgBuf);
+	return r;
+}
+
+//////////////////////////////////////////////////////////////////////
+
+static inline void error(wchar const *fmt, ...)
+{
+	va_list v;
+	va_start(v, fmt);
+	vfwprintf(stderr, fmt, v);
+}
