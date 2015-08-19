@@ -3,11 +3,29 @@
 #pragma once
 
 //////////////////////////////////////////////////////////////////////
+// Create a thread which waits for messages
+// In the thread, copy off the q of events into a new one for processing
+// then process them
+// then loop
+
+// in the callback, add event to q and (re)set timer to fire in N
+
+// in the timer callback, post a message to the thread
+// wait for q to be empty
 
 struct WatcherList
 {
 	vector<HANDLE> handles;
 	vector<Watcher> watchers;
+
+	struct Event
+	{
+		Watcher *watcher;
+		DWORD action;		// FILE_NOTIFY_XXX etc
+		// how to handle rename?
+	};
+
+	list<Watcher *> events;
 
 	//////////////////////////////////////////////////////////////////////
 

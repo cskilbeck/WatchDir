@@ -20,17 +20,24 @@
 #include <functional>
 #include <algorithm>
 #include <map>
+#include <list>
+#include <mutex>
 
 #include <Windows.h>
 
-using string = std::wstring;
-using wchar = wchar_t;
-template<typename T> using vector = std::vector<T>;
-using nameMap = std::map<DWORD, string>;
 using byte = UINT8;
 
+using string = std::wstring;
+using wchar = wchar_t;
+
+template<typename T> using list = std::list<T>;
+template<typename T> using vector = std::vector<T>;
+
+using nameMap = std::map<DWORD, string>;
 
 #include "Util.h"
+#include "FileEvent.h"
+#include "Processor.h"
 #include "Condition.h"
 #include "Watcher.h"
 #include "WatcherList.h"

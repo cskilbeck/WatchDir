@@ -99,3 +99,35 @@ static inline void error(wchar const *fmt, ...)
 	va_start(v, fmt);
 	vfwprintf(stderr, fmt, v);
 }
+
+//////////////////////////////////////////////////////////////////////
+
+template <class K, class Allocator = std::allocator<K>> struct safe_queue
+{
+private:
+	using lock = std::lock_guard<std::mutex>;
+
+	std::list<K, Allocator> mList;
+	std::mutex mMutex;
+
+public:
+	void push(K value)
+	{
+		lock lk(mMutex);
+		mList.push_back(value);
+	}
+
+	K &pop()
+	{
+		lock lk(mMutex);
+		K v = mList.front();
+		mList.pop_front();
+		return v;
+	}
+
+	bool empty()
+	{
+		lock lk(mMutex);
+		return mList.empty();
+	}
+};

@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<watchdir>
+
+  <folder path="c:\temp">
+
+    <triggers>
+      delete
+    </triggers>
+
+    <command>
+      cmd /c delete /Y Z:%{path}%{filename}
+    </command>
+
+    <command multi="true" separator="+">
+      cmd /c copy %{allfiles} Z:\
+    </command>
+  
+  </folder>
+
+  <folder path="C:\temp">
+    <triggers>rename create modify</triggers>
+    <command>cmd /c copy %{fullpath} Z:\%{path}%{name}_bak.%{ext}</command>
+  </folder>
+
+</watchdir>

@@ -76,14 +76,33 @@ struct Watcher
 			{
 				++n;
 				offset = f->NextEntryOffset;
-				string filename(f->FileName, (size_t)f->FileNameLength);
+				string filename(f->FileName, (size_t)(f->FileNameLength / sizeof(string::value_type)));
 				string change = GetChangeName(f->Action);
+
+				// Lock the queue, add the event
+
 				wprintf(L"%s occurred on %s\n", change.c_str(), filename.c_str());
 				f = (FILE_NOTIFY_INFORMATION *)((byte *)f + offset);
 			} while (offset != 0);
 			wprintf(L"%d events processed\n", n);
+			// cancel timer if it's running
+			// set the timer to fire in Nms
+
+			// kick off watching again
 			Read();
 		}
+	}
+
+	//////////////////////////////////////////////////////////////////////
+
+	void ResetTimer()
+	{
+	}
+
+	//////////////////////////////////////////////////////////////////////
+
+	static void CALLBACK TIMERPROC(HWND, UINT, UINT_PTR, DWORD)
+	{
 	}
 
 	//////////////////////////////////////////////////////////////////////
