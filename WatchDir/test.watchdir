@@ -1,25 +1,34 @@
 <?xml version="1.0" encoding="utf-8"?>
+
+<!--
+path = "%HOMEDIR%\Projects\MyProject\Source"
+
+%{fullpath} = C:\Users\chs\Projects\MyProject\Source\main.cpp
+%{drive} = C:
+%{folder} = \Users\chs\Projects\MyProject\Source\
+%{name} = main
+%{ext} = .cpp
+%{filename} = main.cpp
+
+path=[required]
+recursive=[*true|false]
+triggers=(delete|create|rename|modify)...
+ignore=pathspec[;pathspec...] (default = "")
+include=pathspec[;pathspec...] (default = "*.*")   (PathMatchSpec)
+
+commands have 'cmd /c ' prepended to them and will inherit stdin/out/err from parent process (this one)
+-->
+
 <watchdir>
-
-  <folder path="c:\temp">
-
-    <triggers>
-      delete
-    </triggers>
-
-    <command>
-      cmd /c delete /Y Z:%{path}%{filename}
-    </command>
-
-    <command multi="true" separator="+">
-      cmd /c copy %{allfiles} Z:\
-    </command>
-  
-  </folder>
-
-  <folder path="C:\temp">
-    <triggers>rename create modify</triggers>
-    <command>cmd /c copy %{fullpath} Z:\%{path}%{name}_bak.%{ext}</command>
-  </folder>
-
+  <watch>
+    <folder path="%HOMEDIR%\Projects\MyProject"
+            recursive="true"
+            triggers="delete create rename modify"
+            ignore="*.sln;*.txt"
+            include="*.cpp;*.h">
+      <command async="true">
+        copy /y %{filename} Z:\
+      </command>
+    </folder>
+  </watch>
 </watchdir>
