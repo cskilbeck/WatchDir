@@ -4,9 +4,11 @@
 
 //////////////////////////////////////////////////////////////////////
 
-int wmain(int argc, wchar *argv[])
+int _tmain(int argc, tchar *argv[])
 {
 	WatcherList watchers;
+
+	// parse args
 
 	if (watchers.ReadInput())
 	{
@@ -14,7 +16,6 @@ int wmain(int argc, wchar *argv[])
 		{
 			while (MsgWaitForMultipleObjectsEx(0, NULL, INFINITE, QS_ALLINPUT, MWMO_ALERTABLE) == WAIT_IO_COMPLETION)
 			{
-				wprintf(L"APC was called\n");
 			}
 		}
 	}

@@ -1,34 +1,39 @@
 <?xml version="1.0" encoding="utf-8"?>
 
-<!--
-path = "%HOMEDIR%\Projects\MyProject\Source"
-
-%{fullpath} = C:\Users\chs\Projects\MyProject\Source\main.cpp
-%{drive} = C:
-%{folder} = \Users\chs\Projects\MyProject\Source\
-%{name} = main
-%{ext} = .cpp
-%{filename} = main.cpp
-
-path=[required]
-recursive=[*true|false]
-triggers=(delete|create|rename|modify)...
-ignore=pathspec[;pathspec...] (default = "")
-include=pathspec[;pathspec...] (default = "*.*")   (PathMatchSpec)
-
-commands have 'cmd /c ' prepended to them and will inherit stdin/out/err from parent process (this one)
--->
-
 <watchdir>
+
   <watch>
-    <folder path="%HOMEDIR%\Projects\MyProject"
-            recursive="true"
-            triggers="delete create rename modify"
-            ignore="*.sln;*.txt"
-            include="*.cpp;*.h">
-      <command async="true">
-        copy /y %{filename} Z:\
-      </command>
-    </folder>
+    <path>"%HOMEDIR%\Projects\TypescriptTest"</path>
+    <recursive>true</recursive>
+    <triggers>
+      <trigger>delete</trigger>
+      <trigger>create</trigger>
+      <trigger>rename</trigger>
+      <trigger>modify</trigger>
+    </triggers>
+    <ignore>*.sln;*.txt</ignore>
+    <include>*.cpp;*.h</include>
+
+    <command async="true">
+      <exec async="true">winscp open "FatCow" upload %{filename} exit</exec>
+    </command>
+
+    <command>
+      <exec>mkdir Z:\%{folder}</exec>
+    </command>
+
+    <command on="create modify">
+      <exec>copy /y %{fullpath} Z:%{folder}</exec>
+      <exec>echo Copied %{fullpath} to Z:%{folder}</exec>
+    </command>
+
+    <command on="rename">
+      <exec>ren /y Z:%{folder}%{oldfilename} Z:%{folder}%{filename}</exec>
+    </command>
+
+    <command on="delete">
+      <exec>del /y Z:%{folder}%{filename}</exec>
+    </command>
   </watch>
+
 </watchdir>

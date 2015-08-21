@@ -32,10 +32,22 @@
     <ClInclude Include="Condition.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="Processor.h">
+    <ClInclude Include="FileEvent.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="FileEvent.h">
+    <ClInclude Include="Args.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Errors.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Types.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Command.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Queue.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
@@ -44,6 +56,9 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="WatchDir.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Args.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

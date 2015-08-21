@@ -15,22 +15,25 @@
 
 struct FileEvent
 {
-	DWORD action;		// FILE_ACTION_[ADDED|REMOVED|MODIFIED|RENAMED_NEW_NAME] (RENAMED_OLD_NAME is coalesced into RENAMED_NEW_NAME and oldfilename is set)
+	DWORD action;			// FILE_ACTION_[ADDED|REMOVED|MODIFIED|RENAMED_NEW_NAME] (RENAMED_OLD_NAME is coalesced into RENAMED_NEW_NAME and oldfilename is set)
+	tstring filePath;
+	tstring oldfilePath;
 
-	string command;		// eg. cmd /c copy %{fullpath} Z:\backup\%{path}\%{filename}	// To reconstruct full filename & path: %{drive}%{path}%{name}%{ext}
+	tstring drive();		// drive letter only
+	tstring path();			// path only
+	tstring name();			// name only
+	tstring ext();			// where
+	tstring filename();		// filename with extension
 
-	string drive;		// drive letter only
-	string path;		// path only
-	string name;		// name only
-	string ext;			// where
-	string filename;	// filename with extension
+	// these are only valid if action = FILE_ACTION_RENAMED_NEW_NAME
+	tstring oldfilename();
+	tstring oldname();		// name only
+	tstring oldext();		// filename with extension
 
-	// these only set if action = FILE_ACTION_RENAMED_NEW_NAME
-	string oldname;		// name only
-	string oldfilename;	// filename with extension
+	FileEvent(DWORD action_, tchar const *filepath_, tchar const *oldname_ = null)
+		: action(action_)
+		, filePath(filepath_)
+		, oldfilePath(oldname_)
+	{
+	}
 };
-/*
-
-
-
-*/

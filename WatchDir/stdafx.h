@@ -1,18 +1,17 @@
-// stdafx.h : include file for standard system include files,
-// or project specific include files that are used frequently, but
-// are changed infrequently
-//
+//////////////////////////////////////////////////////////////////////
 
 #pragma once
 
+//////////////////////////////////////////////////////////////////////
+
 #include "targetver.h"
+
+//////////////////////////////////////////////////////////////////////
+// stdlib
 
 #include <stdio.h>
 #include <tchar.h>
-
-
-
-// TODO: reference additional headers your program requires here
+#include <memory>
 #include <iostream>
 #include <vector>
 #include <string>
@@ -21,23 +20,33 @@
 #include <algorithm>
 #include <map>
 #include <list>
+#include <thread>
 #include <mutex>
+#include <condition_variable>
+
+//////////////////////////////////////////////////////////////////////
+// windows
 
 #include <Windows.h>
+#include <Shlobj.h>
 
-using byte = UINT8;
+//////////////////////////////////////////////////////////////////////
+// libs
 
-using string = std::wstring;
-using wchar = wchar_t;
+#include "TinyXML.h"
+#include "optionparser.h"
 
-template<typename T> using list = std::list<T>;
-template<typename T> using vector = std::vector<T>;
+//////////////////////////////////////////////////////////////////////
+// mine
 
-using nameMap = std::map<DWORD, string>;
-
+#include "Types.h"
+#include "Errors.h"
 #include "Util.h"
+#include "Queue.h"
 #include "FileEvent.h"
-#include "Processor.h"
+#include "Command.h"
 #include "Condition.h"
 #include "Watcher.h"
 #include "WatcherList.h"
+#include "Args.h"
+

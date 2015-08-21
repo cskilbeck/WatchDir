@@ -4,6 +4,56 @@
 
 //////////////////////////////////////////////////////////////////////
 
+static inline string Format_V(char const *fmt, va_list v)
+{
+	char buffer[512];
+	int l = _vsnprintf_s(buffer, _countof(buffer), _TRUNCATE, fmt, v);
+	if(l != -1)
+	{
+		return string(buffer);
+	}
+	l = _vscprintf(fmt, v);
+	ptr<char> buf(new char[l + 1]);
+	l = _vsnprintf_s(buf.get(), l + 1, _TRUNCATE, fmt, v);
+	return string(buf.get(), buf.get() + l);
+}
+
+//////////////////////////////////////////////////////////////////////
+
+static inline wstring Format_V(wchar const *fmt, va_list v)
+{
+	wchar buffer[512];
+	int l = _vsnwprintf_s(buffer, _countof(buffer), _TRUNCATE, fmt, v);
+	if(l != -1)
+	{
+		return wstring(buffer);
+	}
+	l = _vscwprintf(fmt, v);
+	ptr<wchar> buf(new wchar[l + 1]);
+	l = _vsnwprintf_s(buf.get(), l + 1, _TRUNCATE, fmt, v);
+	return wstring(buf.get(), buf.get() + l);
+}
+
+//////////////////////////////////////////////////////////////////////
+
+static inline wstring Format(wchar const *fmt, ...)
+{
+	va_list v;
+	va_start(v, fmt);
+	return Format_V(fmt, v);
+}
+
+//////////////////////////////////////////////////////////////////////
+
+static inline string Format(char const *fmt, ...)
+{
+	va_list v;
+	va_start(v, fmt);
+	return Format_V(fmt, v);
+}
+
+//////////////////////////////////////////////////////////////////////
+
 template <class container_t, class string_t, class char_t>
 void tokenize(string_t const &str, container_t &tokens, char_t const *delimiters, bool includeEmpty = true)
 {
@@ -51,7 +101,7 @@ void tokenize(char_t const *str, container_t &tokens, char_t const *delimiters, 
 
 //////////////////////////////////////////////////////////////////////
 
-string ltrim(string const &s)
+template<typename chr> std::basic_string<chr> ltrim(std::basic_string<chr> const &s)
 {
 	auto b = std::find_if_not(s.begin(), s.end(), std::isspace);
 	return s.substr(b - s.begin());
@@ -59,7 +109,7 @@ string ltrim(string const &s)
 
 //////////////////////////////////////////////////////////////////////
 
-static inline string rtrim(string const &s)
+template<typename chr> std::basic_string<chr> rtrim(std::basic_string<chr> const &s)
 {
 	auto e = std::find_if_not(s.rbegin(), s.rend(), std::isspace);
 	return s.substr(0, e.base() - s.begin());
@@ -67,7 +117,7 @@ static inline string rtrim(string const &s)
 
 //////////////////////////////////////////////////////////////////////
 
-static inline string trim(string const &s)
+template<typename chr> std::basic_string<chr> trim(std::basic_string<chr> const &s)
 {
 	auto b = std::find_if_not(s.begin(), s.end(), std::isspace);
 	auto e = std::find_if_not(s.rbegin(), s.rend(), std::isspace);
@@ -76,7 +126,7 @@ static inline string trim(string const &s)
 
 //////////////////////////////////////////////////////////////////////
 
-static inline string GetLastErrorText(DWORD err = 0)
+static inline tstring GetLastErrorText(DWORD err = 0)
 {
 	LPTSTR lpMsgBuf;
 	FormatMessage(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
@@ -86,48 +136,182 @@ static inline string GetLastErrorText(DWORD err = 0)
 		(LPTSTR)&lpMsgBuf,
 		0, NULL);
 
-	string r(lpMsgBuf);
+	tstring r(lpMsgBuf);
 	LocalFree(lpMsgBuf);
 	return r;
 }
 
 //////////////////////////////////////////////////////////////////////
 
-static inline void error(wchar const *fmt, ...)
+static inline wstring WideStringFromString(string const &str)
 {
-	va_list v;
-	va_start(v, fmt);
-	vfwprintf(stderr, fmt, v);
+	vector<wchar> temp = { 0 };
+	int bufSize = MultiByteToWideChar(CP_ACP, 0, str.c_str(), (int)str.size(), temp.data(), (int)str.size());
+	if(bufSize > 0)
+	{
+		temp.resize(bufSize + 1);
+		temp[bufSize] = (wchar)0;
+		MultiByteToWideChar(CP_ACP, 0, str.c_str(), (int)str.size(), temp.data(), bufSize);
+		temp[bufSize] = 0;
+	}
+	return wstring(temp.data());
 }
 
 //////////////////////////////////////////////////////////////////////
 
-template <class K, class Allocator = std::allocator<K>> struct safe_queue
+static inline string StringFromWideString(wstring const &str)
 {
-private:
-	using lock = std::lock_guard<std::mutex>;
-
-	std::list<K, Allocator> mList;
-	std::mutex mMutex;
-
-public:
-	void push(K value)
+	vector<char> temp;
+	int bufSize = WideCharToMultiByte(CP_UTF8, 0, str.c_str(), (int)str.size() + 1, NULL, 0, NULL, FALSE);
+	if(bufSize > 0)
 	{
-		lock lk(mMutex);
-		mList.push_back(value);
+		temp.resize(bufSize);
+		WideCharToMultiByte(CP_UTF8, 0, str.c_str(), (int)str.size() + 1, &temp[0], bufSize, NULL, FALSE);
+		return string(temp.data());
 	}
+	return string();
+}
 
-	K &pop()
-	{
-		lock lk(mMutex);
-		K v = mList.front();
-		mList.pop_front();
-		return v;
-	}
+//////////////////////////////////////////////////////////////////////
 
-	bool empty()
-	{
-		lock lk(mMutex);
-		return mList.empty();
-	}
-};
+static inline tstring TStringFromString(string const &str)
+{
+#ifdef UNICODE
+	return WideStringFromString(str);
+#else
+	return str;
+#endif
+}
+
+//////////////////////////////////////////////////////////////////////
+
+static inline string StringFromTString(tstring const &str)
+{
+#ifdef UNICODE
+	return StringFromWideString(str);
+#else
+	return str;
+#endif
+}
+
+//////////////////////////////////////////////////////////////////////
+
+static inline wstring WStringFromTString(tstring const &str)
+{
+#ifdef UNICODE
+	return str;
+#else
+	return WideStringFromString(str);
+#endif
+}
+
+//////////////////////////////////////////////////////////////////////
+
+static inline tstring TStringFromWString(wstring const &str)
+{
+#ifdef UNICODE
+	return str;
+#else
+	return StringFromWideString(str);
+#endif
+}
+
+//////////////////////////////////////////////////////////////////////
+
+static inline int icmp(wstring const &a, wstring const &b)
+{
+	return _wcsicmp(a.c_str(), b.c_str());
+}
+
+//////////////////////////////////////////////////////////////////////
+
+static inline int icmp(wstring const &a, string const &b)
+{
+	return icmp(a, WideStringFromString(b));
+}
+
+//////////////////////////////////////////////////////////////////////
+
+static inline int icmp(string const &a, wstring const &b)
+{
+	return icmp(WideStringFromString(a), b);
+}
+
+//////////////////////////////////////////////////////////////////////
+
+static inline int icmp(string const &a, string const &b)
+{
+	return _stricmp(a.c_str(), b.c_str());
+}
+
+//////////////////////////////////////////////////////////////////////
+
+static inline int icmp(wchar const *a, wchar const *b)
+{
+	return _wcsicmp(a, b);
+}
+
+//////////////////////////////////////////////////////////////////////
+
+static inline int icmp(wchar const *a, char const *b)
+{
+	return icmp(wstring(a), WideStringFromString(b));
+}
+
+//////////////////////////////////////////////////////////////////////
+
+static inline int icmp(char const *a, wchar const *b)
+{
+	return icmp(WideStringFromString(a), b);
+}
+
+//////////////////////////////////////////////////////////////////////
+
+static inline int icmp(char const *a, char const *b)
+{
+	return _stricmp(a, b);
+}
+
+//////////////////////////////////////////////////////////////////////
+
+static inline void error(tchar const *fmt, ...)
+{
+	va_list v;
+	va_start(v, fmt);
+	_vftprintf_s(stderr, fmt, v);
+}
+
+//////////////////////////////////////////////////////////////////////
+
+static inline bool FileOrFolderExists(tchar const *filename)
+{
+	return GetFileAttributes(filename) != INVALID_FILE_ATTRIBUTES;
+}
+
+//////////////////////////////////////////////////////////////////////
+
+static inline bool FileExists(tchar const *filename)
+{
+	DWORD dwAttrib = GetFileAttributes(filename);
+	return dwAttrib != INVALID_FILE_ATTRIBUTES && (dwAttrib & FILE_ATTRIBUTE_DIRECTORY) == 0;
+}
+
+//////////////////////////////////////////////////////////////////////
+
+static inline bool FolderExists(tchar const *foldername)
+{
+	DWORD dwAttrib = GetFileAttributes(foldername);
+	return dwAttrib != INVALID_FILE_ATTRIBUTES && (dwAttrib & FILE_ATTRIBUTE_DIRECTORY) != 0;
+}
+
+//////////////////////////////////////////////////////////////////////
+
+static inline int CreateFolder(tchar const *name)
+{
+	int r = SHCreateDirectory(null, WStringFromTString(name).c_str());
+	return (r == ERROR_SUCCESS ||
+			r == ERROR_ALREADY_EXISTS ||
+			r == ERROR_FILE_EXISTS)
+		? S_OK : HRESULT_FROM_WIN32(r);
+}
+

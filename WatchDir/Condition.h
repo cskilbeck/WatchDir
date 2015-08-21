@@ -6,12 +6,12 @@
 
 struct Condition
 {
-	wchar const *name;
+	tchar const *name;
 	DWORD flag;
 
-	bool operator == (string const &n)
+	bool operator == (tstring const &n)
 	{
-		return _wcsicmp(trim(n).c_str(), name) == 0;
+		return _tcsicmp(trim(n).c_str(), name) == 0;
 	}
 };
 
@@ -19,11 +19,11 @@ struct Condition
 
 __declspec(selectany) vector<Condition> condition_defs =
 {
-	{ L"FILE_NAME", FILE_NOTIFY_CHANGE_FILE_NAME },
-	{ L"DIR_NAME", FILE_NOTIFY_CHANGE_DIR_NAME },
-	{ L"ATTRIBUTES", FILE_NOTIFY_CHANGE_ATTRIBUTES },
-	{ L"SIZE", FILE_NOTIFY_CHANGE_SIZE },
-	{ L"LAST_WRITE", FILE_NOTIFY_CHANGE_LAST_WRITE },
-	{ L"SECURITY", FILE_NOTIFY_CHANGE_SECURITY },
-	{ L"CREATION", FILE_NOTIFY_CHANGE_CREATION }
+	{ $("FILE_NAME"), FILE_NOTIFY_CHANGE_FILE_NAME },
+	{ $("DIR_NAME"), FILE_NOTIFY_CHANGE_DIR_NAME },
+	{ $("ATTRIBUTES"), FILE_NOTIFY_CHANGE_ATTRIBUTES },
+	{ $("SIZE"), FILE_NOTIFY_CHANGE_SIZE },
+	{ $("LAST_WRITE"), FILE_NOTIFY_CHANGE_LAST_WRITE },
+	{ $("SECURITY"), FILE_NOTIFY_CHANGE_SECURITY },
+	{ $("CREATION"), FILE_NOTIFY_CHANGE_CREATION }
 };
