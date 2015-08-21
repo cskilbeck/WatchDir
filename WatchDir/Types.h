@@ -33,8 +33,8 @@ template<typename T> using ptr = std::unique_ptr<T>;
 
 const nullptr_t null = nullptr;
 
-static int(&tprintf)(const tchar *, ...) = _tprintf;
-static int(&ftprintf)(FILE *, const tchar *, ...) = _ftprintf;
+static auto &tprintf = _tprintf;
+static auto &ftprintf = _ftprintf;
 
 #ifdef UNICODE
 static auto &tcin = std::wcin;
