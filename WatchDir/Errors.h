@@ -10,7 +10,10 @@ enum
 	err_usage = -1,
 	err_no_input_specified = -2,
 	err_input_not_found = -3,
-	err_lowest_error = -4
+	err_file_not_found = -4,
+	err_file_err = -5,
+	err_bad_input = -6,
+	err_lowest_error = -7
 };
 
 //////////////////////////////////////////////////////////////////////
@@ -20,7 +23,10 @@ __declspec(selectany) tchar const *error_text[] =
 	$("completed successfully"),
 	$("usage was incorrect"),
 	$("input file was not specified"),
-	$("input file was not found")
+	$("input file was not found"),
+	$("file was not found"),
+	$("file reading failed"),
+	$("input file was malformed")
 };
 
 //////////////////////////////////////////////////////////////////////

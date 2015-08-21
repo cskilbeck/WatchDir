@@ -36,54 +36,82 @@ struct WatcherList
 
 	//////////////////////////////////////////////////////////////////////
 
-	bool ReadInput()
+	DWORD GetFlags(string const &triggers)
 	{
-		tstring s;
-		int line = 0;
-		while (std::getline(tcin, s))
+		return 0;
+	}
+
+	//////////////////////////////////////////////////////////////////////
+
+	int ReadInput(tchar const *filename)
+	{
+		int err = success;
+		ptr<byte> file;
+		xml_document<> doc;
+		if(LoadFile(filename, file) != success)
 		{
-			vector<tstring> tokens;
-			tokenize(s, tokens, $(","), true);
-			if (tokens.size() == 4)
-			{
-				DWORD flags = 0;
-				vector<tstring> conditions;
-				tokenize(tokens[1], conditions, $("+"), true);
-				for (auto const &condition : conditions)
-				{
-					auto c = std::find(condition_defs.begin(), condition_defs.end(), condition);
-					if (c < condition_defs.end())
-					{
-						flags |= c->flag;
-					}
-					else
-					{
-						error($("Unknown flag %s at line %d\n"), condition.c_str(), line);
-					}
-				}
-				if (flags == 0)
-				{
-					error($("No known flags on line %d\n"), line);
-				}
-				else
-				{
-					tstring rc = trim(tokens[2]);
-					BOOL recurse = icmp(rc.c_str(), $("true")) == 0 || icmp(rc.c_str(), $("recursive")) == 0;
-					Add(tokens[0], tokens[3], recurse, flags);
-				}
-			}
-			else
-			{
-				error($("Bad input at line %d\n"), line);
-			}
-			++line;
+			error($("Error loading %s\n"), filename);
+			return err_input_not_found;
 		}
-		if (Count() == 0)
+		try
 		{
-			error($("No folders to watch, exiting...\n"));
-			return false;
+			doc.parse<0>((char *)file.get());
+			xml_node<> *root = doc.first_node("watchdir");
+			if(root == null)
+			{
+				throw err_bad_input;
+			}
+			xml_node<> *watch = root->first_node("watch");
+			if(watch == null)
+			{
+				throw err_bad_input;
+			}
+			while(watch != null)
+			{
+				xml_node<> *pathNode = watch->first_node("path");
+				xml_node<> *recursiveNode = watch->first_node("recursive");
+				xml_node<> *triggersNode = watch->first_node("triggers");
+				xml_node<> *commandNode = watch->first_node("command");
+				if(pathNode == null || triggersNode == null || commandNode == null)
+				{
+					throw err_bad_input;
+				}
+				tstring path = TStringFromString(string(pathNode->value(), pathNode->value_size()));
+				bool recursive = icmp(string(recursiveNode->value(), recursiveNode->value_size()), "true") == 0;
+				string triggers = string(triggersNode->value(), triggersNode->value_size());
+				uint32 flags = GetFlags(triggers);
+				vector<Command> commands;
+				while(commandNode != null)
+				{
+					commands.push_back(Command());
+					vector<string> execs;
+					xml_node<> *exec = commandNode->first_node("exec");
+					if(exec == null)
+					{
+						throw err_bad_input;
+					}
+					while(exec != null)
+					{
+						xml_attribute<> *asyncAttr = exec->first_attribute("async");
+						bool async = asyncAttr != null && icmp(string(asyncAttr->value(), asyncAttr->value_size()), "true") == 0;
+						commands.back().execs.push_back(Exec(TStringFromString(string(exec->value(), exec->value_size())), async));
+						exec = exec->next_sibling();
+					}
+					commandNode = commandNode->next_sibling();
+				}
+				watchers.push_back(new Watcher(path, recursive, flags));
+				watch = watch->next_sibling();
+			}
 		}
-		return true;
+		catch(int e)
+		{
+			err = e;
+		}
+		catch(rapidxml::parse_error)
+		{
+			err = err_bad_input;
+		}
+		return success;
 	}
 
 	//////////////////////////////////////////////////////////////////////

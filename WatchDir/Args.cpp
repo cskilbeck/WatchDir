@@ -5,6 +5,8 @@
 
 //////////////////////////////////////////////////////////////////////
 
+tstring input_filename;
+
 using option::Option;
 vector<Option> options;
 
@@ -117,6 +119,8 @@ int CheckArgs(int argc, char *argv[])
 		error($("Source file doesn't exist"));
 		return err_input_not_found;
 	}
+
+	input_filename = TStringFromString(args->nonOptions()[0]);
 	return success;
 }
 

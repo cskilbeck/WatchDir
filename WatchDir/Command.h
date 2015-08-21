@@ -4,29 +4,40 @@
 
 //////////////////////////////////////////////////////////////////////
 
+struct Exec
+{
+	tstring command;
+	bool async;
+
+	Exec(tstring const &cmd, bool async_)
+		: command(cmd)
+		, async(async_)
+	{
+	}
+
+	void Execute()
+	{
+		// CreateProcess
+		// if !async, wait for it to complete
+	}
+};
+
 struct Command
 {
-	struct Exec
-	{
-		tstring command;
-		bool async;
-
-		void Execute()
-		{
-		}
-	};
-
 	bool async;
-	vector<Exec> commands;
+	vector<Exec> execs;
 
 	Command()
 		: async(false)
 	{
 	}
 
-	void Wait()
+	int Execute()
 	{
+		// create thread to:
+		// for each Exec in execs
+		// exec.Execute();
+		//
+		// if async detach() else join()
 	}
-
-
 };

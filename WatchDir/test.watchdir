@@ -5,12 +5,7 @@
   <watch>
     <path>"%HOMEDIR%\Projects\TypescriptTest"</path>
     <recursive>true</recursive>
-    <triggers>
-      <trigger>delete</trigger>
-      <trigger>create</trigger>
-      <trigger>rename</trigger>
-      <trigger>modify</trigger>
-    </triggers>
+    <triggers>delete create rename modify</triggers>
     <ignore>*.sln;*.txt</ignore>
     <include>*.cpp;*.h</include>
 

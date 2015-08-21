@@ -8,9 +8,15 @@ int _tmain(int argc, tchar *argv[])
 {
 	WatcherList watchers;
 
+	int e = CheckArgs(argc, argv);
+	if(e != success)
+	{
+		return e;
+	}
+
 	// parse args
 
-	if (watchers.ReadInput())
+	if (watchers.ReadInput(input_filename.c_str()))
 	{
 		if (watchers.StartWatching())
 		{

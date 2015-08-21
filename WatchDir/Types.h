@@ -48,3 +48,7 @@ static auto &tcerr = std::cerr;
 
 // Ahem
 #define $(X) TEXT(X)
+
+using rapidxml::xml_document;
+using rapidxml::xml_node;
+using rapidxml::xml_attribute;

@@ -315,3 +315,47 @@ static inline int CreateFolder(tchar const *name)
 		? S_OK : HRESULT_FROM_WIN32(r);
 }
 
+//////////////////////////////////////////////////////////////////////
+
+static inline int LoadFile(tchar const *filename, ptr<byte> &buffer)
+{
+	int err = success;
+	FILE *f = null;
+	try
+	{
+		int e = _tfopen_s(&f, filename, "rb");
+		if(e != 0)
+		{
+			throw err_file_not_found;
+		}
+		if(fseek(f, 0, SEEK_END) != 0)
+		{
+			throw err_file_err;
+		}
+		long size = ftell(f);
+		if(size == -1)
+		{
+			throw err_file_err;
+		}
+		if(fseek(f, 0, SEEK_SET) != 0)
+		{
+			throw err_file_err;
+		}
+		buffer.reset(new byte[size + 1]);
+		if(fread(buffer.get(), sizeof(byte), (size_t)size, f) != size)
+		{
+			throw err_file_err;
+		}
+		byte *p = buffer.get();
+		p[size] = 0;
+	}
+	catch(int e)
+	{
+		err = e;
+	}
+	if(f != NULL)
+	{
+		fclose(f);
+	}
+	return err;
+}

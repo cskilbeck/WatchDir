@@ -14,3 +14,5 @@ int CheckArgs(int argc, char *argv[]);
 uint32 GetCompilerOptionFlags();
 
 extern vector<option::Option> options;
+
+extern tstring input_filename;
