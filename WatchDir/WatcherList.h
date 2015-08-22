@@ -38,7 +38,22 @@ struct WatcherList
 
 	DWORD GetFlags(string const &triggers)
 	{
-		return 0;
+		vector<string> tokens;
+		tokenize(triggers.c_str(), tokens, " ;,", false);
+		DWORD flags = 0;
+		for(auto const &t : tokens)
+		{
+			auto c = std::find(condition_defs.begin(), condition_defs.end(), t);
+			if(c != condition_defs.end())
+			{
+				flags |= c->flag;
+			}
+			else
+			{
+				error("Unknown condition %s\n", t.c_str());
+			}
+		}
+		return flags;
 	}
 
 	//////////////////////////////////////////////////////////////////////
@@ -46,15 +61,14 @@ struct WatcherList
 	int ReadInput(tchar const *filename)
 	{
 		int err = success;
-		ptr<byte> file;
-		xml_document<> doc;
-		if(LoadFile(filename, file) != success)
-		{
-			error($("Error loading %s\n"), filename);
-			return err_input_not_found;
-		}
 		try
 		{
+			ptr<byte> file;
+			xml_document<> doc;
+			if(LoadFile(filename, file) != success)
+			{
+				throw err_input_not_found;
+			}
 			doc.parse<0>((char *)file.get());
 			xml_node<> *root = doc.first_node("watchdir");
 			if(root == null)
@@ -80,10 +94,10 @@ struct WatcherList
 				bool recursive = icmp(string(recursiveNode->value(), recursiveNode->value_size()), "true") == 0;
 				string triggers = string(triggersNode->value(), triggersNode->value_size());
 				uint32 flags = GetFlags(triggers);
-				vector<Command> commands;
+				ptr<Watcher> watcher(new Watcher(path, recursive, flags));
 				while(commandNode != null)
 				{
-					commands.push_back(Command());
+					watcher->commands.push_back(Command());
 					vector<string> execs;
 					xml_node<> *exec = commandNode->first_node("exec");
 					if(exec == null)
@@ -94,12 +108,12 @@ struct WatcherList
 					{
 						xml_attribute<> *asyncAttr = exec->first_attribute("async");
 						bool async = asyncAttr != null && icmp(string(asyncAttr->value(), asyncAttr->value_size()), "true") == 0;
-						commands.back().execs.push_back(Exec(TStringFromString(string(exec->value(), exec->value_size())), async));
+						watcher->commands.back().execs.push_back(Exec(TStringFromString(string(exec->value(), exec->value_size())), async));
 						exec = exec->next_sibling();
 					}
 					commandNode = commandNode->next_sibling();
 				}
-				watchers.push_back(new Watcher(path, recursive, flags));
+				watchers.push_back(watcher.release());
 				watch = watch->next_sibling();
 			}
 		}
@@ -111,7 +125,7 @@ struct WatcherList
 		{
 			err = err_bad_input;
 		}
-		return success;
+		return err;
 	}
 
 	//////////////////////////////////////////////////////////////////////

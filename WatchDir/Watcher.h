@@ -32,7 +32,7 @@ struct Watcher
 {
 	HANDLE dirHandle;
 	HANDLE handle;
-	vector<Command> processors;
+	vector<Command> commands;
 	tstring folder;
 	BOOL recurse;
 	DWORD flags;

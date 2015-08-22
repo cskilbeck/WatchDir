@@ -3,11 +3,12 @@
 <watchdir>
 
   <watch>
-    <path>"%HOMEDIR%\Projects\TypescriptTest"</path>
-    <recursive>true</recursive>
-    <triggers>delete create rename modify</triggers>
-    <ignore>*.sln;*.txt</ignore>
-    <include>*.cpp;*.h</include>
+    <path>"%HOMEDIR%\Projects\TypescriptTest"</path>    <!-- path to monitor -->
+    <recursive>true</recursive>                         <!-- monitor subfolders -->
+    <triggers>write</triggers>                          <!-- read write (&others) -->
+    <ignore>*.sln;*.txt</ignore>                        <!-- include everything except these -->
+    <include>*.cpp;*.h</include>                        <!-- only include these -->
+    <settleDelay>0.5</settleDelay>                      <!-- waits for this much idle time before kicking off commands -->
 
     <command async="true">
       <exec async="true">winscp open "FatCow" upload %{filename} exit</exec>
