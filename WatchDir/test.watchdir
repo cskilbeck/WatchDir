@@ -3,7 +3,7 @@
 <watcher>
 
   <watch>
-    <path>c:\Temp</path>    <!-- path to monitor -->
+    <path>%USERPROFILE%\Projects\Test</path>    <!-- path to monitor -->
     <recursive>true</recursive>                         <!-- monitor subfolders -->
     <triggers>write</triggers>                          <!-- read write (&others) -->
     <ignore>*.sln;*.txt</ignore>                        <!-- include everything except these -->

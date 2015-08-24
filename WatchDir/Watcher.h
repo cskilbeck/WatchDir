@@ -30,18 +30,18 @@ static inline tchar const *GetChangeName(DWORD type)
 
 struct Watcher
 {
-	HANDLE mDirHandle;
-	HANDLE mHandle;
-	vector<Command> mCommands;
-	tstring mFolder;
-	BOOL mRecurse;
-	DWORD mFlags;
-	ptr<byte> mBuffer;
-	size_t mBufferSize;
-	OVERLAPPED mOverlapped;
-	thread_safe_queue<Event *> mQueue;
-	std::thread mThread;
-	HANDLE mThreadHandle;
+	HANDLE						mDirHandle;
+	HANDLE						mHandle;
+	vector<Command>				mCommands;
+	tstring						mFolder;
+	bool						mRecurse;
+	DWORD						mFlags;
+	ptr<byte>					mBuffer;
+	size_t						mBufferSize;
+	OVERLAPPED					mOverlapped;
+	thread_safe_queue<Event *>	mQueue;
+	std::thread					mThread;
+	HANDLE						mThreadHandle;
 
 	//////////////////////////////////////////////////////////////////////
 
@@ -91,8 +91,6 @@ struct Watcher
 			mCommands.push_back(Command(commandNode));
 			commandNode = commandNode->next_sibling();
 		}
-
-		mThread.detach();
 		mThreadHandle = mThread.native_handle();
 	}
 
@@ -139,14 +137,18 @@ struct Watcher
 			{
 				++n;
 				offset = f->NextEntryOffset;
-				tstring filename(TString(f->FileName), (size_t)(f->FileNameLength / sizeof(tstring::value_type)));
+				size_t len = (size_t)(f->FileNameLength / sizeof(wstring::value_type));
+				tstring filename = TString(wstring((wchar *)f->FileName, len));
 				tstring change = GetChangeName(f->Action);
+
+				tprintf($("%s occurred on %s\n"), change.c_str(), filename.c_str());
 
 				// handle renames strangely
 
 				// Lock the queue, add the event
+				FileEvent *fe = new FileEvent(f->Action, filename, tstring());
+				mQueue.add(fe);
 
-				tprintf($("%s occurred on %s\n"), change.c_str(), filename.c_str());
 				f = (FILE_NOTIFY_INFORMATION *)((byte *)f + offset);
 			} while (offset != 0);
 			tprintf($("%d events processed\n"), n);
@@ -165,7 +167,14 @@ struct Watcher
 		DWORD bytesGot = 0;
 		mOverlapped = { 0 };
 		mOverlapped.hEvent = (HANDLE)this;
-		if (!ReadDirectoryChangesW(mDirHandle, (LPVOID)mBuffer.get(), mBufferSize, mRecurse, mFlags, &bytesGot, &mOverlapped, &ChangeOccurred))
+		if (!ReadDirectoryChangesW(mDirHandle,
+									(LPVOID)mBuffer.get(),
+									mBufferSize,
+									(BOOL)mRecurse,
+									mFlags,
+									&bytesGot,
+									&mOverlapped,
+									&ChangeOccurred))
 		{
 			return FALSE;
 		}

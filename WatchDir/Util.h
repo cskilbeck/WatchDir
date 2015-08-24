@@ -392,7 +392,8 @@ static inline tstring ExpandEnvironment(tstring const &src)
 		return tstring();
 	}
 	vector<tchar> buffer(req);
-	if(ExpandEnvironmentStrings(src.c_str(), buffer.data(), req) == 0)
+	DWORD act = ExpandEnvironmentStrings(src.c_str(), buffer.data(), req);
+	if(act == 0)
 	{
 		error($("Can't expand environment strings in %s\n"), src);
 		return tstring();

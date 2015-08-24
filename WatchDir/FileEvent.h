@@ -34,6 +34,14 @@ struct QuitEvent: Event
 
 struct FileEvent: Event
 {
+	enum ActionFlag: uint32
+	{
+		Added = 1,
+		Removed = 2,
+		Modified = 4,
+		Renamed = 8
+	};
+
 	DWORD mAction;			// FILE_ACTION_[ADDED|REMOVED|MODIFIED|RENAMED_NEW_NAME] (RENAMED_OLD_NAME is coalesced into RENAMED_NEW_NAME and oldfilename is set)
 	tstring mFilePath;
 	tstring mOldFilePath;
@@ -49,10 +57,10 @@ struct FileEvent: Event
 	tstring oldname();		// name only
 	tstring oldext();		// filename with extension
 
-	FileEvent(DWORD action_, tchar const *filepath_, tchar const *oldname_ = null)
-		: mAction(action_)
-		, mFilePath(filepath_)
-		, mOldFilePath(oldname_)
+	FileEvent(DWORD action, tstring const &filepath, tstring const &oldname)
+		: mAction(action)
+		, mFilePath(filepath)
+		, mOldFilePath(oldname)
 	{
 	}
 

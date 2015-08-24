@@ -14,8 +14,6 @@ int _tmain(int argc, tchar *argv[])
 		return e;
 	}
 
-	// parse args
-
 	if (watchers.ReadInput(input_filename.c_str()) == success)
 	{
 		if (watchers.StartWatching())
@@ -25,5 +23,13 @@ int _tmain(int argc, tchar *argv[])
 			}
 		}
 	}
+
+#ifdef _DEBUG
+	if(IsDebuggerPresent())
+	{
+		getchar();
+	}
+#endif
+
 	return 0;
 }
