@@ -3,15 +3,6 @@
 #pragma once
 
 //////////////////////////////////////////////////////////////////////
-// Create a thread which waits for messages
-// In the thread, copy off the q of events into a new one for processing
-// then process them
-// then loop
-
-// in the callback, add event to q and (re)set timer to fire in N
-
-// in the timer callback, post a message to the thread
-// wait for q to be empty
 
 struct WatcherList
 {
@@ -91,23 +82,6 @@ struct WatcherList
 			}
 		}
 		return n > 0;
-	}
-
-	//////////////////////////////////////////////////////////////////////
-
-	void WaitAndExec()
-	{
-		DWORD hit = WaitForMultipleObjects((DWORD)Count(), mHandles.data(), FALSE, INFINITE);
-		if (hit < WAIT_OBJECT_0 || hit >= WAIT_OBJECT_0 + Count())
-		{
-			error($("Error waiting for folder changes: %s (continuing to wait...)\n"), GetLastErrorText().c_str());
-		}
-		else
-		{
-			Watcher const *w = mWatchers[hit - WAIT_OBJECT_0];
-			tprintf($("Change detected in folder %s\n"), w->mFolder.c_str());
-			w->Execute();
-		}
 	}
 
 	//////////////////////////////////////////////////////////////////////

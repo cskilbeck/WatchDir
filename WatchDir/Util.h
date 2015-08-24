@@ -54,6 +54,19 @@ static inline string Format(char const *fmt, ...)
 
 //////////////////////////////////////////////////////////////////////
 
+template <typename T> size_t Length(T const *str)
+{
+	assert(str != null);
+
+	T const *p = str;
+	while(*p++)
+	{
+	}
+	return p - str;
+}
+
+//////////////////////////////////////////////////////////////////////
+
 template <typename T> T const *FindFirstOf(T const *str, T const *find, size_t numDelimiters)
 {
 	assert(str != null);
@@ -401,4 +414,3 @@ static inline tstring ExpandEnvironment(tstring const &src)
 	buffer[buffer.size() - 1] = 0;
 	return buffer.data();
 }
-

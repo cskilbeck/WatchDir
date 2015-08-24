@@ -1,19 +1,6 @@
 //////////////////////////////////////////////////////////////////////
-// - batch up events behind a settle timer
-// - remove duplicate events (& coalesce renames) and build full activity mask
 
 #pragma once
-
-//////////////////////////////////////////////////////////////////////
-// EG:
-// C:\foo\bar\baz.txt
-
-// %{drive} : C:
-// %{path} : \foo\bar\
-// %{name} : baz
-// %{ext} : .txt
-// %{filename} : baz.txt
-// %{fullpath} C:\foo\bar\baz.txt
 
 //////////////////////////////////////////////////////////////////////
 
@@ -43,6 +30,14 @@ static inline tchar const *GetChangeName(DWORD type)
 
 struct FileEvent
 {
+	struct PathComponents
+	{
+		tchar drive[_MAX_DRIVE];
+		tchar dir[_MAX_DIR];
+		tchar name[_MAX_FNAME];
+		tchar ext[_MAX_EXT];
+	};
+
 	enum ActionFlag: uint32
 	{
 		Added = 1,
@@ -55,26 +50,26 @@ struct FileEvent
 	tstring mFilePath;
 	tstring mOldFilePath;
 
-	tstring drive();		// drive letter only
-	tstring path();			// path only
-	tstring name();			// name only
-	tstring ext();			// where
-	tstring filename();		// filename with extension
+	tstring mDrive;
+	tstring mDir;
+	tstring mName;
+	tstring mExt;
 
-	// these are only valid if action = FILE_ACTION_RENAMED_NEW_NAME
-	tstring oldfilename();
-	tstring oldname();		// name only
-	tstring oldext();		// filename with extension
+	//////////////////////////////////////////////////////////////////////
 
 	FileEvent(DWORD action, tstring const &filepath, tstring const &oldname)
 		: mAction(action)
 		, mFilePath(filepath)
 		, mOldFilePath(oldname)
 	{
-	}
-
-	void Handle()
-	{
-		tprintf($("%s %s\n"), mFilePath.c_str(), GetChangeName(mAction));
+		tchar drive[_MAX_DRIVE];
+		tchar dir[_MAX_DIR];
+		tchar name[_MAX_FNAME];
+		tchar ext[_MAX_EXT];
+		_tsplitpath_s(mFilePath.c_str(), drive, dir, name, ext);
+		mDrive = drive;
+		mDir = dir;
+		mName = name;
+		mExt = ext;
 	}
 };

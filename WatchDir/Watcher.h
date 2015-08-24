@@ -77,7 +77,17 @@ struct Watcher
 		while(true)
 		{
 			FileEvent *v = mQueue.remove();
-			v->Handle();
+			Execute(v);
+		}
+	}
+
+	//////////////////////////////////////////////////////////////////////
+
+	void Execute(FileEvent *v)
+	{
+		for(auto &cmd : mCommands)
+		{
+			cmd.Execute(mFolder, v);
 		}
 	}
 
@@ -92,7 +102,6 @@ struct Watcher
 
 	void OnChange(DWORD errorCode, DWORD numBytes, LPOVERLAPPED overlappedPtr)
 	{
-		// add a FileEvent to the queue
 		if (errorCode != ERROR_SUCCESS)
 		{
 			error($("Error %d stopping watching %s\n"), errorCode, mFolder.c_str());
@@ -109,7 +118,6 @@ struct Watcher
 				size_t len = (size_t)(f->FileNameLength / sizeof(wstring::value_type));
 				tstring filename = TString(wstring((wchar *)f->FileName, len));
 				mQueue.add(new FileEvent(f->Action, filename, tstring()));
-
 				f = (FILE_NOTIFY_INFORMATION *)((byte *)f + offset);
 			} while (offset != 0);
 			Read();
@@ -160,11 +168,7 @@ struct Watcher
 			error($("Error watching folder %s : %s\n"), mFolder.c_str(), GetLastErrorText().c_str());
 			return FALSE;
 		}
-		else
-		{
-//			tprintf($("Folder: %s, Conditions: %04x, Recurse: %s, Action: %s\n"), folder.c_str(), flags, recurse ? L"Yes" : L"No", command.c_str());
-			return TRUE;
-		}
+		return TRUE;
 	}
 
 	//////////////////////////////////////////////////////////////////////
@@ -189,30 +193,6 @@ struct Watcher
 	~Watcher()
 	{
 		Close();
-	}
-
-	//////////////////////////////////////////////////////////////////////
-
-	void Execute() const
-	{
-		tstring command($("cmd /c dir"));
-		vector<tstring::value_type> cmd(command.size() + 1);
-		memcpy(cmd.data(), command.c_str(), command.size() * sizeof(tstring::value_type));
-		cmd[cmd.size() - 1] = 0;
-		STARTUPINFO si = { 0 };
-		PROCESS_INFORMATION pi = { 0 };
-		si.cb = sizeof(si);
-		tprintf($("Spawning %s\n"), command.c_str());
-		BOOL b = CreateProcess(NULL, cmd.data(), NULL, NULL, TRUE, 0, NULL, mFolder.c_str(), &si, &pi);
-		if (b == NULL)
-		{
-			error($("Error creating process %s, Error: %s\n"), command.c_str(), GetLastErrorText().c_str());
-		}
-		else
-		{
-			WaitForSingleObject(pi.hProcess, INFINITE);
-			tprintf($("Completed %s\n"), command);
-		}
 	}
 };
 
