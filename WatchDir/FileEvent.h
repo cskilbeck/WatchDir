@@ -13,11 +13,30 @@
 // %{filename} : baz.txt
 // %{fullpath} C:\foo\bar\baz.txt
 
-struct FileEvent
+//////////////////////////////////////////////////////////////////////
+
+struct Event
 {
-	DWORD action;			// FILE_ACTION_[ADDED|REMOVED|MODIFIED|RENAMED_NEW_NAME] (RENAMED_OLD_NAME is coalesced into RENAMED_NEW_NAME and oldfilename is set)
-	tstring filePath;
-	tstring oldfilePath;
+	virtual bool Handle() = 0;
+};
+
+//////////////////////////////////////////////////////////////////////
+
+struct QuitEvent: Event
+{
+	bool Handle() override
+	{
+		return true;
+	}
+};
+
+//////////////////////////////////////////////////////////////////////
+
+struct FileEvent: Event
+{
+	DWORD mAction;			// FILE_ACTION_[ADDED|REMOVED|MODIFIED|RENAMED_NEW_NAME] (RENAMED_OLD_NAME is coalesced into RENAMED_NEW_NAME and oldfilename is set)
+	tstring mFilePath;
+	tstring mOldFilePath;
 
 	tstring drive();		// drive letter only
 	tstring path();			// path only
@@ -31,9 +50,14 @@ struct FileEvent
 	tstring oldext();		// filename with extension
 
 	FileEvent(DWORD action_, tchar const *filepath_, tchar const *oldname_ = null)
-		: action(action_)
-		, filePath(filepath_)
-		, oldfilePath(oldname_)
+		: mAction(action_)
+		, mFilePath(filepath_)
+		, mOldFilePath(oldname_)
 	{
+	}
+
+	bool Handle() override
+	{
+		return false;
 	}
 };

@@ -16,7 +16,7 @@ int _tmain(int argc, tchar *argv[])
 
 	// parse args
 
-	if (watchers.ReadInput(input_filename.c_str()))
+	if (watchers.ReadInput(input_filename.c_str()) == success)
 	{
 		if (watchers.StartWatching())
 		{

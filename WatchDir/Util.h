@@ -172,7 +172,7 @@ static inline tstring GetLastErrorText(DWORD err = 0)
 
 //////////////////////////////////////////////////////////////////////
 
-static inline wstring WideStringFromString(string const &str)
+static inline wstring WString(string const &str)
 {
 	vector<wchar> temp = { 0 };
 	int bufSize = MultiByteToWideChar(CP_ACP, 0, str.c_str(), (int)str.size(), temp.data(), (int)str.size());
@@ -188,7 +188,7 @@ static inline wstring WideStringFromString(string const &str)
 
 //////////////////////////////////////////////////////////////////////
 
-static inline string StringFromWideString(wstring const &str)
+static inline string String(wstring const &str)
 {
 	vector<char> temp;
 	int bufSize = WideCharToMultiByte(CP_UTF8, 0, str.c_str(), (int)str.size() + 1, NULL, 0, NULL, FALSE);
@@ -203,10 +203,24 @@ static inline string StringFromWideString(wstring const &str)
 
 //////////////////////////////////////////////////////////////////////
 
-static inline tstring TStringFromString(string const &str)
+static inline string String(string const &str)
+{
+	return str;
+}
+
+//////////////////////////////////////////////////////////////////////
+
+static inline wstring WString(wstring const &str)
+{
+	return str;
+}
+
+//////////////////////////////////////////////////////////////////////
+
+static inline tstring TString(string const &str)
 {
 #ifdef UNICODE
-	return WideStringFromString(str);
+	return WString(str);
 #else
 	return str;
 #endif
@@ -214,34 +228,12 @@ static inline tstring TStringFromString(string const &str)
 
 //////////////////////////////////////////////////////////////////////
 
-static inline string StringFromTString(tstring const &str)
-{
-#ifdef UNICODE
-	return StringFromWideString(str);
-#else
-	return str;
-#endif
-}
-
-//////////////////////////////////////////////////////////////////////
-
-static inline wstring WStringFromTString(tstring const &str)
+static inline tstring TString(wstring const &str)
 {
 #ifdef UNICODE
 	return str;
 #else
-	return WideStringFromString(str);
-#endif
-}
-
-//////////////////////////////////////////////////////////////////////
-
-static inline tstring TStringFromWString(wstring const &str)
-{
-#ifdef UNICODE
-	return str;
-#else
-	return StringFromWideString(str);
+	return String(str);
 #endif
 }
 
@@ -256,14 +248,14 @@ static inline int icmp(wstring const &a, wstring const &b)
 
 static inline int icmp(wstring const &a, string const &b)
 {
-	return icmp(a, WideStringFromString(b));
+	return icmp(a, WString(b));
 }
 
 //////////////////////////////////////////////////////////////////////
 
 static inline int icmp(string const &a, wstring const &b)
 {
-	return icmp(WideStringFromString(a), b);
+	return icmp(WString(a), b);
 }
 
 //////////////////////////////////////////////////////////////////////
@@ -284,14 +276,14 @@ static inline int icmp(wchar const *a, wchar const *b)
 
 static inline int icmp(wchar const *a, char const *b)
 {
-	return icmp(wstring(a), WideStringFromString(b));
+	return icmp(wstring(a), WString(b));
 }
 
 //////////////////////////////////////////////////////////////////////
 
 static inline int icmp(char const *a, wchar const *b)
 {
-	return icmp(WideStringFromString(a), b);
+	return icmp(WString(a), b);
 }
 
 //////////////////////////////////////////////////////////////////////
@@ -337,7 +329,7 @@ static inline bool FolderExists(tchar const *foldername)
 
 static inline int CreateFolder(tchar const *name)
 {
-	int r = SHCreateDirectory(null, WStringFromTString(name).c_str());
+	int r = SHCreateDirectory(null, WString(name).c_str());
 	return (r == ERROR_SUCCESS ||
 			r == ERROR_ALREADY_EXISTS ||
 			r == ERROR_FILE_EXISTS)
@@ -388,3 +380,24 @@ static inline int LoadFile(tchar const *filename, ptr<byte> &buffer)
 	}
 	return err;
 }
+
+//////////////////////////////////////////////////////////////////////
+
+static inline tstring ExpandEnvironment(tstring const &src)
+{
+	DWORD req = ExpandEnvironmentStrings(src.c_str(), null, 0);
+	if(req == 0)
+	{
+		error($("Can't expand environment strings in %s\n"), src);
+		return tstring();
+	}
+	vector<tchar> buffer(req);
+	if(ExpandEnvironmentStrings(src.c_str(), buffer.data(), req) == 0)
+	{
+		error($("Can't expand environment strings in %s\n"), src);
+		return tstring();
+	}
+	buffer[buffer.size() - 1] = 0;
+	return buffer.data();
+}
+

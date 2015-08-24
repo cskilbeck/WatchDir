@@ -13,7 +13,7 @@ private:
 	std::mutex mMutex;
 	std::condition_variable mSignal;
 
-	// no copying due to the mutex
+	// no copying due to the mutex (which means it can't be put directly into std::containers)
 	thread_safe_queue(thread_safe_queue const &&) {}
 	thread_safe_queue(thread_safe_queue const &) {}
 

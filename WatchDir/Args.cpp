@@ -114,13 +114,13 @@ int CheckArgs(int argc, char *argv[])
 	}
 
 	// check input file exists
-	if(!FileExists(TStringFromString(args->nonOptions()[0]).c_str()))
+	if(!FileExists(TString(args->nonOptions()[0]).c_str()))
 	{
 		error($("Source file doesn't exist"));
 		return err_input_not_found;
 	}
 
-	input_filename = TStringFromString(args->nonOptions()[0]);
+	input_filename = TString(args->nonOptions()[0]);
 	return success;
 }
 

@@ -6,30 +6,44 @@
 
 struct Exec
 {
-	tstring command;
-	bool async;
+	tstring mCommand;
+	bool mAsync;
 
-	Exec(tstring const &cmd, bool async_)
-		: command(cmd)
-		, async(async_)
+	Exec(xml_node<> *exec)
 	{
+		mCommand = TString(exec->val());
+		xml_attribute<> *asyncAttr = exec->first_attribute("async");
+		mAsync = asyncAttr != null && icmp(asyncAttr->val(), "true") == 0;
 	}
 
 	void Execute()
 	{
-		// CreateProcess
-		// if !async, wait for it to complete
+		tprintf($("EXEC: %s\n"), mCommand.c_str());
 	}
 };
 
+//////////////////////////////////////////////////////////////////////
+
 struct Command
 {
-	bool async;
-	vector<Exec> execs;
+	bool mAsync;
+	vector<Exec> mExecs;
 
-	Command()
-		: async(false)
+	Command(xml_node<> *commandNode)
 	{
+		xml_attribute<> *asyncAttr = commandNode->first_attribute("async");
+		mAsync = asyncAttr != null && icmp(asyncAttr->val(), "true") == 0;
+		vector<string> execs;
+		xml_node<> *execNode = commandNode->first_node("exec");
+		if(execNode == null)
+		{
+			throw err_bad_input;
+		}
+		while(execNode != null)
+		{
+			mExecs.push_back(Exec(execNode));
+			execNode = execNode->next_sibling();
+		}
 	}
 
 	int Execute()
@@ -39,5 +53,9 @@ struct Command
 		// exec.Execute();
 		//
 		// if async detach() else join()
+		for(auto &e : mExecs)
+		{
+			e.Execute();
+		}
 	}
 };

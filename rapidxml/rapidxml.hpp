@@ -694,6 +694,17 @@ namespace rapidxml
             return m_value ? m_value : nullstr();
         }
 
+		//! Gets value of node as a std::string. 
+		//! Interpretation of value depends on type of node.
+		//! Note that value will not be zero-terminated if rapidxml::parse_no_string_terminators option was selected during parse.
+		//! <br><br>
+		//! Use value_size() function to determine length of the value.
+		//! \return Value of node, or empty string if node has no value.
+		std::basic_string<Ch> val() const
+		{
+			return std::basic_string<Ch>(value(), value_size());
+		}
+
         //! Gets size of node value, not including terminator character.
         //! This function works correctly irrespective of whether value is or is not zero terminated.
         //! \return Size of node value, in characters.

@@ -15,46 +15,20 @@
 
 struct WatcherList
 {
-	vector<HANDLE> handles;
-	vector<Watcher *> watchers;
+	//////////////////////////////////////////////////////////////////////
 
 	struct Event
 	{
-		Watcher *watcher;
-		DWORD action;		// FILE_NOTIFY_XXX etc
+		Watcher *mWatcher;
+		DWORD mAction;		// FILE_NOTIFY_XXX etc
 		// how to handle rename?
 	};
 
-	list<Watcher *> events;
-
 	//////////////////////////////////////////////////////////////////////
 
-	void Add(tstring const &folder, tstring const &command, BOOL recurse, DWORD flags)
-	{
-		watchers.push_back(new Watcher(folder, recurse, flags));
-	}
-
-	//////////////////////////////////////////////////////////////////////
-
-	DWORD GetFlags(string const &triggers)
-	{
-		vector<string> tokens;
-		tokenize(triggers.c_str(), tokens, " ;,", false);
-		DWORD flags = 0;
-		for(auto const &t : tokens)
-		{
-			auto c = std::find(condition_defs.begin(), condition_defs.end(), t);
-			if(c != condition_defs.end())
-			{
-				flags |= c->flag;
-			}
-			else
-			{
-				error("Unknown condition %s\n", t.c_str());
-			}
-		}
-		return flags;
-	}
+	vector<HANDLE> mHandles;
+	vector<Watcher *> mWatchers;
+	list<Watcher *> mEvents;
 
 	//////////////////////////////////////////////////////////////////////
 
@@ -70,7 +44,7 @@ struct WatcherList
 				throw err_input_not_found;
 			}
 			doc.parse<0>((char *)file.get());
-			xml_node<> *root = doc.first_node("watchdir");
+			xml_node<> *root = doc.first_node("watcher");
 			if(root == null)
 			{
 				throw err_bad_input;
@@ -82,38 +56,7 @@ struct WatcherList
 			}
 			while(watch != null)
 			{
-				xml_node<> *pathNode = watch->first_node("path");
-				xml_node<> *recursiveNode = watch->first_node("recursive");
-				xml_node<> *triggersNode = watch->first_node("triggers");
-				xml_node<> *commandNode = watch->first_node("command");
-				if(pathNode == null || triggersNode == null || commandNode == null)
-				{
-					throw err_bad_input;
-				}
-				tstring path = TStringFromString(string(pathNode->value(), pathNode->value_size()));
-				bool recursive = icmp(string(recursiveNode->value(), recursiveNode->value_size()), "true") == 0;
-				string triggers = string(triggersNode->value(), triggersNode->value_size());
-				uint32 flags = GetFlags(triggers);
-				ptr<Watcher> watcher(new Watcher(path, recursive, flags));
-				while(commandNode != null)
-				{
-					watcher->commands.push_back(Command());
-					vector<string> execs;
-					xml_node<> *exec = commandNode->first_node("exec");
-					if(exec == null)
-					{
-						throw err_bad_input;
-					}
-					while(exec != null)
-					{
-						xml_attribute<> *asyncAttr = exec->first_attribute("async");
-						bool async = asyncAttr != null && icmp(string(asyncAttr->value(), asyncAttr->value_size()), "true") == 0;
-						watcher->commands.back().execs.push_back(Exec(TStringFromString(string(exec->value(), exec->value_size())), async));
-						exec = exec->next_sibling();
-					}
-					commandNode = commandNode->next_sibling();
-				}
-				watchers.push_back(watcher.release());
+				mWatchers.push_back(new Watcher(watch));
 				watch = watch->next_sibling();
 			}
 		}
@@ -134,7 +77,7 @@ struct WatcherList
 	{
 		tprintf($("Waiting for activity on %d folders\n"), Count());
 		int n = 0;
-		for (auto &w : watchers)
+		for (auto &w : mWatchers)
 		{
 			if (w->Watch())
 			{
@@ -148,16 +91,16 @@ struct WatcherList
 
 	void WaitAndExec()
 	{
-		DWORD hit = WaitForMultipleObjects((DWORD)Count(), handles.data(), FALSE, INFINITE);
+		DWORD hit = WaitForMultipleObjects((DWORD)Count(), mHandles.data(), FALSE, INFINITE);
 		if (hit < WAIT_OBJECT_0 || hit >= WAIT_OBJECT_0 + Count())
 		{
 			error($("Error waiting for folder changes: %s (continuing to wait...)\n"), GetLastErrorText().c_str());
 		}
 		else
 		{
-			Watcher const *w = watchers[hit - WAIT_OBJECT_0];
-			tprintf($("Change detected in folder %s\n"), w->folder.c_str());
-			w->Exec();
+			Watcher const *w = mWatchers[hit - WAIT_OBJECT_0];
+			tprintf($("Change detected in folder %s\n"), w->mFolder.c_str());
+			w->Execute();
 		}
 	}
 
@@ -165,19 +108,19 @@ struct WatcherList
 
 	~WatcherList()
 	{
-		for(auto w : watchers)
+		for(auto w : mWatchers)
 		{
 			delete w;
 		}
-		watchers.clear();
-		handles.clear();
+		mWatchers.clear();
+		mHandles.clear();
 	}
 
 	//////////////////////////////////////////////////////////////////////
 
 	int Count()
 	{
-		return (int)watchers.size();
+		return (int)mWatchers.size();
 	}
 };
 

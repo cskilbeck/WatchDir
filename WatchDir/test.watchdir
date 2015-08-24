@@ -1,9 +1,9 @@
-<?xml version="1.0" encoding="utf-8"?>
+  <?xml version="1.0" encoding="utf-8"?>
 
-<watchdir>
+<watcher>
 
   <watch>
-    <path>"%HOMEDIR%\Projects\TypescriptTest"</path>    <!-- path to monitor -->
+    <path>c:\Temp</path>    <!-- path to monitor -->
     <recursive>true</recursive>                         <!-- monitor subfolders -->
     <triggers>write</triggers>                          <!-- read write (&others) -->
     <ignore>*.sln;*.txt</ignore>                        <!-- include everything except these -->
@@ -32,4 +32,4 @@
     </command>
   </watch>
 
-</watchdir>
+</watcher>
