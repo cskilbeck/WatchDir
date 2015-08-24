@@ -1,4 +1,6 @@
 //////////////////////////////////////////////////////////////////////
+// - batch up events behind a settle timer
+// - remove duplicate events (& coalesce renames) and build full activity mask
 
 #pragma once
 
@@ -15,24 +17,31 @@
 
 //////////////////////////////////////////////////////////////////////
 
-struct Event
+__declspec(selectany) std::map<DWORD, tchar const *> changeNames =
 {
-	virtual bool Handle() = 0;
+	{ FILE_ACTION_ADDED, $("Added") },
+	{ FILE_ACTION_REMOVED, $("Removed") },
+	{ FILE_ACTION_MODIFIED, $("Modified") },
+	{ FILE_ACTION_RENAMED_OLD_NAME, $("Renamed") },
+	{ FILE_ACTION_RENAMED_NEW_NAME, $("is the new name") }
 };
 
 //////////////////////////////////////////////////////////////////////
 
-struct QuitEvent: Event
+static inline tchar const *GetChangeName(DWORD type)
 {
-	bool Handle() override
+	auto f = changeNames.find(type);
+	if(f != changeNames.end())
 	{
-		return true;
+		return f->second;
 	}
-};
+	static tchar const *empty = $("");
+	return empty;
+}
 
 //////////////////////////////////////////////////////////////////////
 
-struct FileEvent: Event
+struct FileEvent
 {
 	enum ActionFlag: uint32
 	{
@@ -64,8 +73,8 @@ struct FileEvent: Event
 	{
 	}
 
-	bool Handle() override
+	void Handle()
 	{
-		return false;
+		tprintf($("%s %s\n"), mFilePath.c_str(), GetChangeName(mAction));
 	}
 };

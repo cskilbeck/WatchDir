@@ -4,44 +4,20 @@
 
 //////////////////////////////////////////////////////////////////////
 
-__declspec(selectany) std::map<DWORD, tchar const *> changeNames = 
-{
-	{ FILE_ACTION_ADDED, $("File Added") },
-	{ FILE_ACTION_REMOVED, $("File Removed") },
-	{ FILE_ACTION_MODIFIED, $("File Modified") },
-	{ FILE_ACTION_RENAMED_OLD_NAME, $("File Renamed from") },
-	{ FILE_ACTION_RENAMED_NEW_NAME, $("File Renamed to") }
-};
-
-//////////////////////////////////////////////////////////////////////
-
-static inline tchar const *GetChangeName(DWORD type)
-{
-	auto f = changeNames.find(type);
-	if (f != changeNames.end())
-	{
-		return f->second;
-	}
-	static tchar const *empty = $("");
-	return empty;
-}
-
-//////////////////////////////////////////////////////////////////////
-
 struct Watcher
 {
-	HANDLE						mDirHandle;
-	HANDLE						mHandle;
-	vector<Command>				mCommands;
-	tstring						mFolder;
-	bool						mRecurse;
-	DWORD						mFlags;
-	ptr<byte>					mBuffer;
-	size_t						mBufferSize;
-	OVERLAPPED					mOverlapped;
-	thread_safe_queue<Event *>	mQueue;
-	std::thread					mThread;
-	HANDLE						mThreadHandle;
+	HANDLE							mDirHandle;
+	HANDLE							mHandle;
+	vector<Command>					mCommands;
+	tstring							mFolder;
+	bool							mRecurse;
+	DWORD							mFlags;
+	ptr<byte>						mBuffer;
+	size_t							mBufferSize;
+	OVERLAPPED						mOverlapped;
+	thread_safe_queue<FileEvent *>	mQueue;
+	std::thread						mThread;
+	HANDLE							mThreadHandle;
 
 	//////////////////////////////////////////////////////////////////////
 
@@ -98,17 +74,11 @@ struct Watcher
 
 	void WaitForEvents()
 	{
-		tprintf($("Thread is waiting for events...\n"));
 		while(true)
 		{
-			Event *v = mQueue.remove();
-			tprintf($("File event: \n"));
-			if(v->Handle())
-			{
-				break;
-			}
+			FileEvent *v = mQueue.remove();
+			v->Handle();
 		}
-		tprintf($("Thread finished.\n"));
 	}
 
 	//////////////////////////////////////////////////////////////////////
@@ -129,7 +99,6 @@ struct Watcher
 		}
 		else
 		{
-			tprintf($("Activity detected:\n"));
 			FILE_NOTIFY_INFORMATION *f = (FILE_NOTIFY_INFORMATION *)(mBuffer.get());
 			DWORD offset;
 			int n = 0;
@@ -139,23 +108,10 @@ struct Watcher
 				offset = f->NextEntryOffset;
 				size_t len = (size_t)(f->FileNameLength / sizeof(wstring::value_type));
 				tstring filename = TString(wstring((wchar *)f->FileName, len));
-				tstring change = GetChangeName(f->Action);
-
-				tprintf($("%s occurred on %s\n"), change.c_str(), filename.c_str());
-
-				// handle renames strangely
-
-				// Lock the queue, add the event
-				FileEvent *fe = new FileEvent(f->Action, filename, tstring());
-				mQueue.add(fe);
+				mQueue.add(new FileEvent(f->Action, filename, tstring()));
 
 				f = (FILE_NOTIFY_INFORMATION *)((byte *)f + offset);
 			} while (offset != 0);
-			tprintf($("%d events processed\n"), n);
-			// cancel timer if it's running
-			// set the timer to fire in Nms
-
-			// kick off watching again
 			Read();
 		}
 	}
@@ -232,15 +188,7 @@ struct Watcher
 
 	~Watcher()
 	{
-		mQueue.add(new QuitEvent());
 		Close();
-		tprintf($("Sending Quit to thread...\n"));
-		if(WaitForSingleObject(mThreadHandle, 1000) != WAIT_OBJECT_0)
-		{
-			// ask user here if they'd like to kill the thread or wait? (MessageBox?)
-			tprintf($("Killing thread.\n"));
-			TerminateThread(mThreadHandle, 0);
-		}
 	}
 
 	//////////////////////////////////////////////////////////////////////
