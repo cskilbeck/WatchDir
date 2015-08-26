@@ -40,9 +40,11 @@
 // mine
 
 #include "Types.h"
+#include "Map.h"
 #include "Errors.h"
 #include "Util.h"
 #include "Queue.h"
+#include "Timer.h"
 #include "FileEvent.h"
 #include "Command.h"
 #include "Condition.h"

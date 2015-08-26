@@ -6,18 +6,120 @@
 
 struct Watcher
 {
-	HANDLE							mDirHandle;
-	HANDLE							mHandle;
-	vector<Command>					mCommands;
-	tstring							mFolder;
-	bool							mRecurse;
-	DWORD							mFlags;
-	ptr<byte>						mBuffer;
-	size_t							mBufferSize;
-	OVERLAPPED						mOverlapped;
-	thread_safe_queue<FileEvent *>	mQueue;
-	std::thread						mThread;
-	HANDLE							mThreadHandle;
+	//////////////////////////////////////////////////////////////////////
+	// Add things to the Queue and push the timer back
+
+	struct MyTimer : Timer
+	{
+		Watcher *mWatcher;
+
+		MyTimer(Watcher *w)
+			: Timer()
+			, mWatcher(w)
+		{
+		}
+
+		void OnTimer() override
+		{
+			mWatcher->OnTimer();
+		}
+	};
+
+	//////////////////////////////////////////////////////////////////////
+
+	HANDLE					mDirHandle;
+	HANDLE					mHandle;
+	vector<Command>			mCommands;
+	tstring					mFolder;
+	bool					mRecurse;
+	DWORD					mFlags;
+	ptr<byte>				mBuffer;
+	size_t					mBufferSize;
+	OVERLAPPED				mOverlapped;
+	safe_queue<FileEvent *>	mQueue;
+	std::thread				mThread;
+	HANDLE					mThreadHandle;
+	MyTimer					mTimer;
+	std::mutex				mMutex;
+	float64					mSettleDelay;
+
+	using lock = std::lock_guard<std::mutex>;
+
+	//////////////////////////////////////////////////////////////////////
+
+	struct Signal
+	{
+		Watcher *mWatcher;
+		list<FileEvent *> *mQueue;
+
+		//////////////////////////////////////////////////////////////////////
+
+		Signal(Watcher *watcher)
+			: mWatcher(watcher)
+			, mQueue(new list<FileEvent *>())
+		{
+		}
+
+		//////////////////////////////////////////////////////////////////////
+
+		~Signal()
+		{
+			delete mQueue;
+		}
+
+		//////////////////////////////////////////////////////////////////////
+
+		void Execute()
+		{
+			// do %{filename} replacements
+			// mask based on 'on' attribute
+
+			tprintf($("======================================================================\n"));
+			FileEvent *old = null;
+			for (auto p : *mQueue)
+			{
+				if (p->mAction == FILE_ACTION_RENAMED_OLD_NAME)
+				{
+					old = p;
+				}
+				else
+				{
+					if (p->mAction == FILE_ACTION_RENAMED_NEW_NAME && old != null)
+					{
+						p->SetOldFilePath(mWatcher->mFolder, old->mFilePath);
+						old = null;
+					}
+					tprintf($("\t%s\n"), p->Details().c_str());
+					for (auto &cmd : mWatcher->mCommands)
+					{
+						cmd.Execute(mWatcher->mFolder, p);
+					}
+				}
+			}
+		}
+	};
+
+	//////////////////////////////////////////////////////////////////////
+
+	void OnTimer()
+	{
+		Signal *signal = new Signal(this);
+		while (!mQueue.empty())
+		{
+			// not the end of the world if something is added to the queue in here...
+			signal->mQueue->push_back(mQueue.remove());
+		}
+		QueueUserAPC(ExecuteList, mThreadHandle, (ULONG_PTR)signal);
+	}
+
+	//////////////////////////////////////////////////////////////////////
+
+	static void CALLBACK ExecuteList(ULONG_PTR param)
+	{
+		Signal *signal = (Signal *)param;
+		signal->Execute();
+		delete signal;
+	}
 
 	//////////////////////////////////////////////////////////////////////
 
@@ -49,11 +151,14 @@ struct Watcher
 		, mBufferSize(buffer_size)
 		, mBuffer(new byte[buffer_size])
 		, mThread(&Watcher::WaitForEvents, this)
+		, mTimer(this)
+		, mSettleDelay(0.25)
 	{
 		xml_node<> *pathNode = watch->first_node("path");
 		xml_node<> *recursiveNode = watch->first_node("recursive");
 		xml_node<> *triggersNode = watch->first_node("triggers");
 		xml_node<> *commandNode = watch->first_node("command");
+		xml_node<> *settleDelayNode = watch->first_node("settleDelay");
 		if(pathNode == null || triggersNode == null || commandNode == null)
 		{
 			throw err_bad_input;
@@ -61,7 +166,16 @@ struct Watcher
 		mFolder = ExpandEnvironment(TString(pathNode->val()));
 		mRecurse = icmp(recursiveNode->val(), "true") == 0;
 		mFlags = GetFlags(triggersNode->val());
-
+		if (settleDelayNode != null)
+		{
+			mSettleDelay = atof(settleDelayNode->val().c_str());
+			if (mSettleDelay == 0.0)
+			{
+				error($("Invalid settle delay: %s\n"), settleDelayNode->val().c_str());
+				mSettleDelay = 0.25;
+			}
+		}
+		
 		while(commandNode != null)
 		{
 			mCommands.push_back(Command(commandNode));
@@ -76,18 +190,7 @@ struct Watcher
 	{
 		while(true)
 		{
-			FileEvent *v = mQueue.remove();
-			Execute(v);
-		}
-	}
-
-	//////////////////////////////////////////////////////////////////////
-
-	void Execute(FileEvent *v)
-	{
-		for(auto &cmd : mCommands)
-		{
-			cmd.Execute(mFolder, v);
+			SleepEx(INFINITE, TRUE);
 		}
 	}
 
@@ -117,7 +220,8 @@ struct Watcher
 				offset = f->NextEntryOffset;
 				size_t len = (size_t)(f->FileNameLength / sizeof(wstring::value_type));
 				tstring filename = TString(wstring((wchar *)f->FileName, len));
-				mQueue.add(new FileEvent(f->Action, filename, tstring()));
+				mQueue.add(new FileEvent(f->Action, mFolder, filename));
+				mTimer.SetDelay(1);
 				f = (FILE_NOTIFY_INFORMATION *)((byte *)f + offset);
 			} while (offset != 0);
 			Read();
@@ -133,7 +237,7 @@ struct Watcher
 		mOverlapped.hEvent = (HANDLE)this;
 		if (!ReadDirectoryChangesW(mDirHandle,
 									(LPVOID)mBuffer.get(),
-									mBufferSize,
+									(DWORD)mBufferSize,
 									(BOOL)mRecurse,
 									mFlags,
 									&bytesGot,
@@ -195,5 +299,3 @@ struct Watcher
 		Close();
 	}
 };
-
-// C:\Temp, FILE_NAME + DIR_NAME + ATTRIBUTES + SIZE + LAST_WRITE + SECURITY + CREATION, recursive, cmd /c dir

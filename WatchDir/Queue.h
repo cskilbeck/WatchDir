@@ -4,7 +4,7 @@
 
 //////////////////////////////////////////////////////////////////////
 
-template <class K, class A = std::allocator<K>> struct thread_safe_queue
+template <class K, class A = std::allocator<K>> struct blocking_queue
 {
 private:
 	using lock = std::unique_lock<std::mutex>;
@@ -13,13 +13,12 @@ private:
 	std::mutex mMutex;
 	std::condition_variable mSignal;
 
-	// no copying due to the mutex (which means it can't be put directly into std::containers)
-	thread_safe_queue(thread_safe_queue const &&) {}
-	thread_safe_queue(thread_safe_queue const &) {}
+	blocking_queue(blocking_queue const &&) {}
+	blocking_queue(blocking_queue const &) {}
 
 public:
 
-	thread_safe_queue()
+	blocking_queue()
 	{
 	}
 
@@ -37,6 +36,46 @@ public:
 		{
 			mSignal.wait(lk);
 		}
+		K v = mList.front();
+		mList.pop_front();
+		return v;
+	}
+
+	bool empty()
+	{
+		lock lk(mMutex);
+		return mList.empty();
+	}
+};
+
+//////////////////////////////////////////////////////////////////////
+
+template <class K, class A = std::allocator<K>> struct safe_queue
+{
+private:
+	using lock = std::lock_guard<std::mutex>;
+
+	std::list<K, A> mList;
+	std::mutex mMutex;
+
+	safe_queue(safe_queue const &&) {}
+	safe_queue(safe_queue const &) {}
+
+public:
+
+	safe_queue()
+	{
+	}
+
+	void add(K value)
+	{
+		lock lk(mMutex);
+		mList.push_back(value);
+	}
+
+	K remove()
+	{
+		lock lk(mMutex);
 		K v = mList.front();
 		mList.pop_front();
 		return v;

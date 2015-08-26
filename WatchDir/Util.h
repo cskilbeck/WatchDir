@@ -187,16 +187,15 @@ static inline tstring GetLastErrorText(DWORD err = 0)
 
 static inline wstring WString(string const &str)
 {
-	vector<wchar> temp = { 0 };
-	int bufSize = MultiByteToWideChar(CP_ACP, 0, str.c_str(), (int)str.size(), temp.data(), (int)str.size());
+	vector<wchar> temp;
+	int bufSize = MultiByteToWideChar(CP_UTF8, 0, str.c_str(), -1, null, 0);
 	if(bufSize > 0)
 	{
-		temp.resize(bufSize + 1);
-		temp[bufSize] = (wchar)0;
-		MultiByteToWideChar(CP_ACP, 0, str.c_str(), (int)str.size(), temp.data(), bufSize);
-		temp[bufSize] = 0;
+		temp.resize(bufSize);
+		MultiByteToWideChar(CP_UTF8, 0, str.c_str(), -1, temp.data(), bufSize);
+		return wstring(temp.data());
 	}
-	return wstring(temp.data());
+	return wstring();
 }
 
 //////////////////////////////////////////////////////////////////////
@@ -204,11 +203,11 @@ static inline wstring WString(string const &str)
 static inline string String(wstring const &str)
 {
 	vector<char> temp;
-	int bufSize = WideCharToMultiByte(CP_UTF8, 0, str.c_str(), (int)str.size() + 1, NULL, 0, NULL, FALSE);
+	int bufSize = WideCharToMultiByte(CP_UTF8, 0, str.c_str(), -1, NULL, 0, NULL, FALSE);
 	if(bufSize > 0)
 	{
 		temp.resize(bufSize);
-		WideCharToMultiByte(CP_UTF8, 0, str.c_str(), (int)str.size() + 1, &temp[0], bufSize, NULL, FALSE);
+		WideCharToMultiByte(CP_UTF8, 0, str.c_str(), -1, temp.data(), bufSize, NULL, FALSE);
 		return string(temp.data());
 	}
 	return string();
@@ -259,6 +258,27 @@ static inline int icmp(wstring const &a, wstring const &b)
 
 //////////////////////////////////////////////////////////////////////
 
+static inline int icmp(wchar const *a, wchar const *b)
+{
+	return _wcsicmp(a, b);
+}
+
+//////////////////////////////////////////////////////////////////////
+
+static inline int icmp(string const &a, string const &b)
+{
+	return _stricmp(a.c_str(), b.c_str());
+}
+
+//////////////////////////////////////////////////////////////////////
+
+static inline int icmp(char const *a, char const *b)
+{
+	return _stricmp(a, b);
+}
+
+//////////////////////////////////////////////////////////////////////
+
 static inline int icmp(wstring const &a, string const &b)
 {
 	return icmp(a, WString(b));
@@ -273,20 +293,6 @@ static inline int icmp(string const &a, wstring const &b)
 
 //////////////////////////////////////////////////////////////////////
 
-static inline int icmp(string const &a, string const &b)
-{
-	return _stricmp(a.c_str(), b.c_str());
-}
-
-//////////////////////////////////////////////////////////////////////
-
-static inline int icmp(wchar const *a, wchar const *b)
-{
-	return _wcsicmp(a, b);
-}
-
-//////////////////////////////////////////////////////////////////////
-
 static inline int icmp(wchar const *a, char const *b)
 {
 	return icmp(wstring(a), WString(b));
@@ -297,13 +303,6 @@ static inline int icmp(wchar const *a, char const *b)
 static inline int icmp(char const *a, wchar const *b)
 {
 	return icmp(WString(a), b);
-}
-
-//////////////////////////////////////////////////////////////////////
-
-static inline int icmp(char const *a, char const *b)
-{
-	return _stricmp(a, b);
 }
 
 //////////////////////////////////////////////////////////////////////
@@ -399,18 +398,34 @@ static inline int LoadFile(tchar const *filename, ptr<byte> &buffer)
 static inline tstring ExpandEnvironment(tstring const &src)
 {
 	DWORD req = ExpandEnvironmentStrings(src.c_str(), null, 0);
-	if(req == 0)
+	if(req != 0)
 	{
-		error($("Can't expand environment strings in %s\n"), src);
-		return tstring();
+		vector<tchar> buffer(req);
+		DWORD act = ExpandEnvironmentStrings(src.c_str(), buffer.data(), req);
+		if (act != 0)
+		{
+			buffer[buffer.size() - 1] = 0;
+			return buffer.data();
+		}
 	}
-	vector<tchar> buffer(req);
-	DWORD act = ExpandEnvironmentStrings(src.c_str(), buffer.data(), req);
-	if(act == 0)
+	error($("Can't expand environment strings in %s (%08x)\n"), src, GetLastError());
+	return tstring();
+}
+
+//////////////////////////////////////////////////////////////////////
+
+static inline tstring Replace(tstring str, tstring const &findStr, tstring const &replaceStr)
+{
+	size_t pos = 0;
+	while(true)
 	{
-		error($("Can't expand environment strings in %s\n"), src);
-		return tstring();
+		pos = str.find(findStr, pos);
+		if (pos == std::string::npos)
+		{
+			break;
+		}
+		str.replace(pos, findStr.length(), replaceStr);
+		pos += replaceStr.length();
 	}
-	buffer[buffer.size() - 1] = 0;
-	return buffer.data();
+	return str;
 }

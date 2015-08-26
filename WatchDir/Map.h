@@ -1,0 +1,38 @@
+//////////////////////////////////////////////////////////////////////
+
+#pragma once
+
+//////////////////////////////////////////////////////////////////////
+
+template<typename K, typename V> class Map : public std::map<K, V>
+{
+public:
+
+	//////////////////////////////////////////////////////////////////////
+
+	Map(std::initializer_list<std::pair<K const, V>> i)
+		: std::map<K, V>(i)
+	{
+	}
+
+	//////////////////////////////////////////////////////////////////////
+
+	template<typename D> V get(K const &key, D const &def)
+	{
+		auto f = find(key);
+		return (f != end()) ? f->second : (V)def;
+	}
+
+	//////////////////////////////////////////////////////////////////////
+
+	template<typename D> bool try_get(K const &key, D &val)
+	{
+		auto f = find(key);
+		if (f == end())
+		{
+			return false;
+		}
+		val = f->second;
+		return true;
+	}
+};
