@@ -1,6 +1,8 @@
 //////////////////////////////////////////////////////////////////////
 
 #pragma once
+#include "Shlwapi.h"
+#pragma comment(lib, "shlwapi.lib")
 
 //////////////////////////////////////////////////////////////////////
 
@@ -42,6 +44,8 @@ struct Watcher
 	MyTimer					mTimer;
 	std::mutex				mMutex;
 	float64					mSettleDelay;
+	vector<tstring>			mIncludes;
+	vector<tstring>			mExcludes;
 
 	using lock = std::lock_guard<std::mutex>;
 
@@ -50,13 +54,12 @@ struct Watcher
 	struct Signal
 	{
 		Watcher *mWatcher;
-		list<FileEvent *> *mQueue;
+		list<FileEvent *> mQueue;
 
 		//////////////////////////////////////////////////////////////////////
 
 		Signal(Watcher *watcher)
 			: mWatcher(watcher)
-			, mQueue(new list<FileEvent *>())
 		{
 		}
 
@@ -64,19 +67,18 @@ struct Watcher
 
 		~Signal()
 		{
-			delete mQueue;
 		}
 
 		//////////////////////////////////////////////////////////////////////
 
 		void Execute()
 		{
-			// do %{filename} replacements
-			// mask based on 'on' attribute
+			// for coalescing the activity on each object (eg it was (modified+renamed))
+			std::map<tstring, DWORD> folderActivity;
 
-			tprintf($("======================================================================\n"));
+			// join renames into single events and build activity mask for each event
 			FileEvent *old = null;
-			for (auto p : *mQueue)
+			for (auto p : mQueue)
 			{
 				if (p->mAction == FILE_ACTION_RENAMED_OLD_NAME)
 				{
@@ -86,14 +88,76 @@ struct Watcher
 				{
 					if (p->mAction == FILE_ACTION_RENAMED_NEW_NAME && old != null)
 					{
-						p->SetOldFilePath(mWatcher->mFolder, old->mFilePath);
+						p->SetFilePath(mWatcher->mFolder, old->mFilePath);
+						p->SetNewFilePath(mWatcher->mFolder, p->mFilePath);
 						old = null;
 					}
-					tprintf($("\t%s\n"), p->Details().c_str());
+				}
+			}
+
+			mQueue.remove_if([](FileEvent *f) {
+				return f->mAction == FILE_ACTION_RENAMED_OLD_NAME;
+			});
+
+			// remove what should not be included
+			mQueue.remove_if([this](FileEvent *f) {
+				if (mWatcher->mIncludes.empty())
+				{
+					return false;
+				}
+				for (auto const &wildCard : mWatcher->mIncludes)
+				{
+					if (PathMatchSpec(f->mFilePath.c_str(), wildCard.c_str()))
+					{
+						return false;
+					}
+				}
+				return true;
+			});
+
+			// remove what should be excluded
+			mQueue.remove_if([this](FileEvent *f) {
+				if (mWatcher->mExcludes.empty())
+				{
+					return false;
+				}
+				for (auto const &wildCard : mWatcher->mExcludes)
+				{
+					if (PathMatchSpec(f->mFilePath.c_str(), wildCard.c_str()))
+					{
+						return true;
+					}
+				}
+				return false;
+			});
+
+			// sort the filepaths based on their depth (deepest first)
+			mQueue.sort([](FileEvent *a, FileEvent *b) {
+				return GetPathDepth(b->mFilePath) < GetPathDepth(a->mFilePath);
+			});
+
+			// build activity masks
+			for (auto p : mQueue)
+			{
+				folderActivity[p->mFilePath] |= 1 << (p->mAction - 1);
+			}
+
+			// call commands once for each unique filepath
+			tprintf($("======================================================================\n"));
+			for (auto p : mQueue)
+			{
+				DWORD activity = folderActivity[p->mFilePath];
+				if (activity != 0)
+				{
+					tprintf($("\t%s (%04x)\n"), p->Details().c_str(), activity);
 					for (auto &cmd : mWatcher->mCommands)
 					{
-						cmd.Execute(mWatcher->mFolder, p);
+						if ((cmd.mFilter & activity) != 0)
+						{
+							cmd.Execute(mWatcher->mFolder, p);
+						}
 					}
+					folderActivity[p->mFilePath] = 0;
 				}
 			}
 		}
@@ -104,11 +168,7 @@ struct Watcher
 	void OnTimer()
 	{
 		Signal *signal = new Signal(this);
-		while (!mQueue.empty())
-		{
-			// not the end of the world if something is added to the queue in here...
-			signal->mQueue->push_back(mQueue.remove());
-		}
+		mQueue.move_to(signal->mQueue);
 		QueueUserAPC(ExecuteList, mThreadHandle, (ULONG_PTR)signal);
 	}
 
@@ -138,6 +198,7 @@ struct Watcher
 			else
 			{
 				error("Unknown condition %s\n", t.c_str());
+				throw err_bad_input;
 			}
 		}
 		return flags;
@@ -151,6 +212,7 @@ struct Watcher
 		, mBufferSize(buffer_size)
 		, mBuffer(new byte[buffer_size])
 		, mThread(&Watcher::WaitForEvents, this)
+		, mRecurse(true)
 		, mTimer(this)
 		, mSettleDelay(0.25)
 	{
@@ -159,23 +221,30 @@ struct Watcher
 		xml_node<> *triggersNode = watch->first_node("triggers");
 		xml_node<> *commandNode = watch->first_node("command");
 		xml_node<> *settleDelayNode = watch->first_node("settleDelay");
-		if(pathNode == null || triggersNode == null || commandNode == null)
+		xml_node<> *includeNode = watch->first_node("include");
+		xml_node<> *excludeNode = watch->first_node("exclude");
+
+		if (pathNode == null || triggersNode == null || commandNode == null)
 		{
 			throw err_bad_input;
 		}
-		mFolder = ExpandEnvironment(TString(pathNode->val()));
-		mRecurse = icmp(recursiveNode->val(), "true") == 0;
-		mFlags = GetFlags(triggersNode->val());
-		if (settleDelayNode != null)
+
+		if (includeNode != null)
 		{
-			mSettleDelay = atof(settleDelayNode->val().c_str());
-			if (mSettleDelay == 0.0)
-			{
-				error($("Invalid settle delay: %s\n"), settleDelayNode->val().c_str());
-				mSettleDelay = 0.25;
-			}
+			tokenize(TString(includeNode->val()).c_str(), mIncludes, $(";"), false);
 		}
-		
+
+		if (excludeNode != null)
+		{
+			tokenize(TString(excludeNode->val()).c_str(), mExcludes, $(";"), false);
+		}
+
+		mFolder = ExpandEnvironment(TString(pathNode->val()));
+		mFlags = GetFlags(triggersNode->val());
+
+		xmlGetBool(recursiveNode, mRecurse, Optional, $("recursive"));
+		xmlGetDouble(settleDelayNode, mSettleDelay, Optional, $("Invalid settle delay: %s\n"));
+
 		while(commandNode != null)
 		{
 			mCommands.push_back(Command(commandNode));

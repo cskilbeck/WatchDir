@@ -81,6 +81,17 @@ public:
 		return v;
 	}
 
+	void move_to(std::list<K> &l)
+	{
+		lock lk(mMutex);
+		while (!mList.empty())
+		{
+			K v = mList.front();
+			mList.pop_front();
+			l.push_back(v);
+		}
+	}
+
 	bool empty()
 	{
 		lock lk(mMutex);

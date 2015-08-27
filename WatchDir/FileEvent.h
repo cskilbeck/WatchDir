@@ -39,7 +39,7 @@ struct FileEvent
 
 	DWORD mAction;
 	tstring mFilePath;
-	tstring mOldFilePath;
+	tstring mNewFilePath;
 
 	tstring mDrive;
 	tstring mDir;
@@ -62,7 +62,7 @@ struct FileEvent
 
 	tstring OldName() const
 	{
-		return (mAction == FILE_ACTION_RENAMED_NEW_NAME) ? mOldFilePath : tstring();
+		return (mAction == FILE_ACTION_RENAMED_NEW_NAME) ? mNewFilePath : tstring();
 	}
 
 	//////////////////////////////////////////////////////////////////////
@@ -70,6 +70,24 @@ struct FileEvent
 	tstring Details() const
 	{
 		return Format($("%s %s %s"), mFilePath.c_str(), ChangeName(), OldName().c_str());
+	}
+
+	//////////////////////////////////////////////////////////////////////
+
+	bool IsFile() const
+	{
+		if (mAction == FILE_ACTION_REMOVED)
+		{
+
+		}
+		if (mNewFilePath.empty())
+		{
+			return IsFileOrFolder(mFilePath.c_str()) == FileOrFolder::File;
+		}
+		else
+		{
+			return IsFileOrFolder(mNewFilePath.c_str()) == FileOrFolder::File;
+		}
 	}
 
 	//////////////////////////////////////////////////////////////////////
@@ -93,25 +111,7 @@ struct FileEvent
 
 	//////////////////////////////////////////////////////////////////////
 
-	void SetOldFilePath(tstring const &folder, tstring const &oldFilePath)
-	{
-		mOldFilePath = GetJoinedPath(folder, oldFilePath);
-		tchar drive[_MAX_DRIVE];
-		tchar dir[_MAX_DIR];
-		tchar name[_MAX_FNAME];
-		tchar ext[_MAX_EXT];
-		_tsplitpath_s(mOldFilePath.c_str(), drive, dir, name, ext);
-		mOldDrive = drive;
-		mOldDir = dir;
-		mOldName = name;
-		mOldExt = ext;
-	}
-
-	//////////////////////////////////////////////////////////////////////
-
-	FileEvent(DWORD action, tstring const &folder, tstring const &filepath)
-		: mAction(action)
-		, mFilePath(filepath)
+	void SetFilePath(tstring const &folder, tstring const &filepath)
 	{
 		mFilePath = GetJoinedPath(folder, filepath);
 		tchar drive[_MAX_DRIVE];
@@ -123,5 +123,29 @@ struct FileEvent
 		mDir = dir;
 		mName = name;
 		mExt = ext;
+	}
+
+	//////////////////////////////////////////////////////////////////////
+
+	void SetNewFilePath(tstring const &folder, tstring const &oldFilePath)
+	{
+		mNewFilePath = GetJoinedPath(folder, oldFilePath);
+		tchar drive[_MAX_DRIVE];
+		tchar dir[_MAX_DIR];
+		tchar name[_MAX_FNAME];
+		tchar ext[_MAX_EXT];
+		_tsplitpath_s(mNewFilePath.c_str(), drive, dir, name, ext);
+		mOldDrive = drive;
+		mOldDir = dir;
+		mOldName = name;
+		mOldExt = ext;
+	}
+
+	//////////////////////////////////////////////////////////////////////
+
+	FileEvent(DWORD action, tstring const &folder, tstring const &filepath)
+		: mAction(action)
+	{
+		SetFilePath(folder, filepath);
 	}
 };

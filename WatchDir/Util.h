@@ -316,6 +316,29 @@ static inline void error(tchar const *fmt, ...)
 
 //////////////////////////////////////////////////////////////////////
 
+enum FileOrFolder
+{
+	Error = -1,
+	File = 1,
+	Folder = 2
+};
+
+static inline FileOrFolder IsFileOrFolder(tchar const *filename)
+{
+	DWORD dwAttrib = GetFileAttributes(filename);
+	if (dwAttrib == INVALID_FILE_ATTRIBUTES)
+	{
+		return Error;
+	}
+	if ((dwAttrib & FILE_ATTRIBUTE_DIRECTORY) != 0)
+	{
+		return Folder;
+	}
+	return File;
+}
+
+//////////////////////////////////////////////////////////////////////
+
 static inline bool FileOrFolderExists(tchar const *filename)
 {
 	return GetFileAttributes(filename) != INVALID_FILE_ATTRIBUTES;
@@ -428,4 +451,85 @@ static inline tstring Replace(tstring str, tstring const &findStr, tstring const
 		pos += replaceStr.length();
 	}
 	return str;
+}
+
+//////////////////////////////////////////////////////////////////////
+
+static inline int GetPathDepth(tstring const &path)
+{
+	int n = 0;
+	tchar const *p = path.c_str();
+	for (size_t i = 0, l = path.length() - 1; i < l; ++i)
+	{
+		if (p[i] == '\\')
+		{
+			++n;
+		}
+	}
+	return n;
+}
+
+//////////////////////////////////////////////////////////////////////
+
+static inline bool ParseDouble(tchar const *d, double &v)
+{
+	tchar *e;
+	errno = 0;
+	double x = _tcstod(d, &e);
+	if (errno != 0)
+	{
+		return false;
+	}
+	v = x;
+	return true;
+}
+
+//////////////////////////////////////////////////////////////////////
+
+enum ValueRequired
+{
+	Optional,
+	Required
+};
+
+static inline void xmlGetDouble(xml_base<> *node, double &val, ValueRequired required, tchar const *name)
+{
+	if (node != null)
+	{
+		if (!ParseDouble(TString(node->val()).c_str(), val))
+		{
+			error($("Error, invalid value for %s (%s)\n"), name, node->val().c_str());
+			throw err_bad_input;
+		}
+	}
+	else if (required == Required)
+	{
+		error($("Missing value for %s\n"), name);
+		throw err_bad_input;
+	}
+}
+
+//////////////////////////////////////////////////////////////////////
+
+static inline void xmlGetBool(xml_base<> *node, bool &val, ValueRequired required, tchar const *name)
+{
+	if (node != null)
+	{
+		bool isTrue = icmp(node->val(), "true") == 0;
+		bool isFalse = icmp(node->val(), "false") == 0;
+		if (!(isTrue || isFalse))
+		{
+			error($("Error, invalid value for %s (%s)\n"), name, node->val().c_str());
+			throw err_bad_input;
+		}
+		else
+		{
+			val = isTrue;
+		}
+	}
+	else if (required == Required)
+	{
+		error($("Missing value for %s\n"), name);
+		throw err_bad_input;
+	}
 }

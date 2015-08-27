@@ -49,29 +49,31 @@ struct Exec
 		using ch = tstring::value_type;
 		size_t size = mCommand.size();
 		ptr<ch> cmd(new ch[size + 1]);
-		memcpy(cmd.get(), mCommand.data(), size * sizeof(ch));
+		memcpy(cmd.get(), (TString($("cmd /c ")) + mCommand).data(), size * sizeof(ch));
 		cmd.get()[size] = 0;
 		STARTUPINFO si = { 0 };
 		PROCESS_INFORMATION pi = { 0 };
 		si.cb = sizeof(si);
 		tprintf($("\t\t%s\n"), ReplaceAllTokens(mCommand, fileEvent).c_str());
-// 		BOOL b = CreateProcess(NULL, cmd.get(), NULL, NULL, TRUE, 0, NULL, folder.c_str(), &si, &pi);
-// 		if(b == NULL)
-// 		{
-// 			error($("Error creating process %s, Error: %s\n"), mCommand.c_str(), GetLastErrorText().c_str());
-// 		}
-// 		else if(!mAsync)
-// 		{
-// 			WaitForSingleObject(pi.hProcess, INFINITE);
-// 			tprintf($("%s complete\n"), mCommand.c_str());
-// 		}
+ 		BOOL b = CreateProcess(NULL, cmd.get(), NULL, NULL, TRUE, 0, NULL, folder.c_str(), &si, &pi);
+ 		if(b == NULL)
+ 		{
+ 			error($("Error creating process %s, Error: %s\n"), mCommand.c_str(), GetLastErrorText().c_str());
+ 		}
+ 		else if(!mAsync)
+ 		{
+ 			WaitForSingleObject(pi.hProcess, INFINITE);
+ 			tprintf($("%s complete\n"), mCommand.c_str());
+ 		}
 	}
 };
 
 __declspec(selectany) Map<tstring, DWORD> filters =
 {
 	{ "add",	FileEvent::FA_ADDED },
+	{ "create",	FileEvent::FA_ADDED },
 	{ "remove",	FileEvent::FA_REMOVED },
+	{ "delete",	FileEvent::FA_REMOVED },
 	{ "modify",	FileEvent::FA_MODIFIED },
 	{ "rename",	FileEvent::FA_RENAMED },
 	{ "all",	FileEvent::FA_ALL }
@@ -89,9 +91,8 @@ struct Command
 
 	Command(xml_node<> *commandNode)
 		: mAsync(false)
-		, mFilter(0xff)
+		, mFilter(0)
 	{
-		xml_attribute<> *asyncAttr = commandNode->first_attribute("async");
 		xml_attribute<> *onAttr = commandNode->first_attribute("on");
 		if (onAttr != null)
 		{
@@ -110,7 +111,7 @@ struct Command
 				}
 			}
 		}
-		mAsync = asyncAttr != null && icmp(asyncAttr->val(), "true") == 0;
+		xmlGetBool(commandNode->first_attribute("async"), mAsync, Optional, $("async"));
 		vector<string> execs;
 		xml_node<> *execNode = commandNode->first_node("exec");
 		if(execNode == null)

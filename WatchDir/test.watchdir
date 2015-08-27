@@ -3,35 +3,24 @@
 <watcher>
 
   <watch>
-    <path>%USERPROFILE%\Projects\_Test</path>            <!-- path to monitor -->
-    <recursive>true</recursive>                         <!-- monitor subfolders -->
-    <triggers>write</triggers>                          <!-- read write (&others) -->
-    <ignore>*.sln;*.txt</ignore>                        <!-- include everything except these -->
-    <include>*.cpp;*.h</include>                        <!-- only include these -->
-    <settleDelay>0.5</settleDelay>                      <!-- waits for this much idle time before kicking off commands -->
+    <!-- path to monitor -->
+    <path>%USERPROFILE%\Projects\html</path>
 
-    <command async="true">
-      <exec async="true">winscp open "FatCow" upload %{filename} exit</exec>
-    </command>
+    <!-- monitor subfolders -->
+    <recursive>true</recursive>
 
-    <command>
-      <exec>mkdir Z:\%{folder}</exec>
-    </command>
+    <!-- read write (&others) -->
+    <triggers>write</triggers>
 
-    <command on="create modify">
-      <exec>copy /y %{fullpath} Z:%{folder}</exec>
-      <exec>echo Copied %{fullpath} to Z:%{folder}</exec>
-    </command>
+    <!-- waits for this much idle time before kicking off commands -->
+    <settleDelay>0.25</settleDelay>
 
-    <command on="rename">
-      <exec>ren /y Z:%{folder}%{oldfilename} Z:%{folder}%{filename}</exec>
-    </command>
-
-    <command on="delete">
-      <exec>del /y Z:%{folder}%{filename}</exec>
+    <!-- a set of commands to run -->
+    <command on="all">
+      <exec>
+        autohotkey %USERPROFEIL%\Documents\RefreshChrome.ahk
+      </exec>
     </command>
   </watch>
 
 </watcher>
-
-<!-- create modify rename delete -->
