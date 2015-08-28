@@ -217,10 +217,8 @@ struct Watcher
 		, mSettleDelay(0.25)
 	{
 		xml_node<> *pathNode = watch->first_node("path");
-		xml_node<> *recursiveNode = watch->first_node("recursive");
 		xml_node<> *triggersNode = watch->first_node("triggers");
 		xml_node<> *commandNode = watch->first_node("command");
-		xml_node<> *settleDelayNode = watch->first_node("settleDelay");
 		xml_node<> *includeNode = watch->first_node("include");
 		xml_node<> *excludeNode = watch->first_node("exclude");
 
@@ -242,8 +240,8 @@ struct Watcher
 		mFolder = ExpandEnvironment(TString(pathNode->val()));
 		mFlags = GetFlags(triggersNode->val());
 
-		xmlGetBool(recursiveNode, mRecurse, Optional, $("recursive"));
-		xmlGetDouble(settleDelayNode, mSettleDelay, Optional, $("Invalid settle delay: %s\n"));
+		xmlGetBoolNode(watch, mRecurse, Optional, $("recursive"));
+		xmlGetDoubleNode(watch, mSettleDelay, Optional, $("settleDelay"));
 
 		while(commandNode != null)
 		{

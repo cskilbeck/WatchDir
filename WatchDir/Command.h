@@ -12,10 +12,14 @@ struct Exec
 	//////////////////////////////////////////////////////////////////////
 
 	Exec(xml_node<> *exec)
+		: mAsync(false)
 	{
 		mCommand = TString(exec->val());
-		xml_attribute<> *asyncAttr = exec->first_attribute("async");
-		mAsync = asyncAttr != null && icmp(asyncAttr->val(), "true") == 0;
+		mCommand = Replace(mCommand, $("\r\n"), $(" "));
+		mCommand = Replace(mCommand, $("\r"), $(" "));
+		mCommand = Replace(mCommand, $("\n"), $(" "));
+		mCommand = Replace(mCommand, $("\t"), $(" "));
+		xmlGetBoolAttr(exec, mAsync, Optional, $("async"));
 	}
 
 	//////////////////////////////////////////////////////////////////////
@@ -44,27 +48,34 @@ struct Exec
 
 	//////////////////////////////////////////////////////////////////////
 
-	void Execute(tstring const &folder, FileEvent *fileEvent)
+	void Execute(tstring const &folder, FileEvent *fileEvent, vector<HANDLE> &handles)
 	{
 		using ch = tstring::value_type;
-		size_t size = mCommand.size();
-		ptr<ch> cmd(new ch[size + 1]);
-		memcpy(cmd.get(), (TString($("cmd /c ")) + mCommand).data(), size * sizeof(ch));
-		cmd.get()[size] = 0;
+		tstring c = Format($("cmd /c %s"), ReplaceAllTokens(mCommand, fileEvent).c_str());
+		ptr<ch> cmd(new ch[c.size() + 1]);
+		memcpy(cmd.get(), c.c_str(), c.size() + 1);
 		STARTUPINFO si = { 0 };
 		PROCESS_INFORMATION pi = { 0 };
 		si.cb = sizeof(si);
-		tprintf($("\t\t%s\n"), ReplaceAllTokens(mCommand, fileEvent).c_str());
- 		BOOL b = CreateProcess(NULL, cmd.get(), NULL, NULL, TRUE, 0, NULL, folder.c_str(), &si, &pi);
- 		if(b == NULL)
+		tprintf($("\t\t%s..."), c.c_str());
+		if(!CreateProcess(NULL, cmd.get(), NULL, NULL, TRUE, 0, NULL, folder.c_str(), &si, &pi))
  		{
- 			error($("Error creating process %s, Error: %s\n"), mCommand.c_str(), GetLastErrorText().c_str());
+ 			error($("error: %s\n"), GetLastErrorText().c_str());
+			return;
  		}
- 		else if(!mAsync)
- 		{
- 			WaitForSingleObject(pi.hProcess, INFINITE);
- 			tprintf($("%s complete\n"), mCommand.c_str());
- 		}
+		else
+		{
+			handles.push_back(pi.hProcess);
+			if(!mAsync)
+			{
+				WaitForSingleObject(pi.hProcess, INFINITE);
+				tprintf($("complete\n"), mCommand.c_str());
+			}
+			else
+			{
+				tprintf($("spawned\n"));
+			}
+		}
 	}
 };
 
@@ -93,7 +104,7 @@ struct Command
 		: mAsync(false)
 		, mFilter(0)
 	{
-		xml_attribute<> *onAttr = commandNode->first_attribute("on");
+		xml_attribute<> *onAttr = commandNode->first_attribute("triggers");
 		if (onAttr != null)
 		{
 			vector<tstring> tokens;
@@ -111,7 +122,7 @@ struct Command
 				}
 			}
 		}
-		xmlGetBool(commandNode->first_attribute("async"), mAsync, Optional, $("async"));
+		xmlGetBoolAttr(commandNode, mAsync, Optional, $("async"));
 		vector<string> execs;
 		xml_node<> *execNode = commandNode->first_node("exec");
 		if(execNode == null)
@@ -127,13 +138,56 @@ struct Command
 
 	//////////////////////////////////////////////////////////////////////
 
-	int Execute(tstring const &folder, FileEvent *fileEvent)
+	struct ThreadParams
 	{
-		for(auto &e : mExecs)
+		Command *mCommand;
+		tstring const &mFolder;
+		FileEvent *mFileEvent;
+
+		ThreadParams(Command *command, tstring const &folder, FileEvent *fileEvent)
+			: mCommand(command)
+			, mFolder(folder)
+			, mFileEvent(fileEvent)
 		{
-			// check filter
-			e.Execute(folder, fileEvent);
 		}
-		return 0;
+
+		DWORD Run()
+		{
+			vector<HANDLE> handles;
+			for(auto &e : mCommand->mExecs)
+			{
+				// check filter
+				e.Execute(mFolder, mFileEvent, handles);
+			}
+			if(!mCommand->mAsync)
+			{
+				WaitForMultipleObjects(handles.size(), handles.data(), TRUE, INFINITE);
+			}
+			return 0;
+		}
+	};
+
+	//////////////////////////////////////////////////////////////////////
+
+	static DWORD WINAPI ExecuteThread(LPVOID param)
+	{
+		return ((ThreadParams *)param)->Run();
+	}
+
+	//////////////////////////////////////////////////////////////////////
+
+	void Execute(tstring const &folder, FileEvent *fileEvent)
+	{
+		ThreadParams *t = new ThreadParams(this, folder, fileEvent);
+		DWORD threadID;
+		HANDLE thread = CreateThread(NULL, 0, &ExecuteThread, t, 0, &threadID);
+		if(thread == INVALID_HANDLE_VALUE)
+		{
+			error($("Error creating thread: %s\n"), GetLastErrorText().c_str());
+		}
+		else if(!mAsync)
+		{
+			WaitForSingleObject(thread, INFINITE);
+		}
 	}
 };

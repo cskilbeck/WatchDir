@@ -494,19 +494,29 @@ enum ValueRequired
 
 static inline void xmlGetDouble(xml_base<> *node, double &val, ValueRequired required, tchar const *name)
 {
-	if (node != null)
+	if(node != null)
 	{
-		if (!ParseDouble(TString(node->val()).c_str(), val))
+		if(!ParseDouble(TString(node->val()).c_str(), val))
 		{
 			error($("Error, invalid value for %s (%s)\n"), name, node->val().c_str());
 			throw err_bad_input;
 		}
 	}
-	else if (required == Required)
+	else if(required == Required)
 	{
 		error($("Missing value for %s\n"), name);
 		throw err_bad_input;
 	}
+}
+
+static inline void xmlGetDoubleNode(xml_node<> *node, double &val, ValueRequired required, tchar const *name)
+{
+	xmlGetDouble(node->first_node(name), val, required, name);
+}
+
+static inline void xmlGetDoubleAttr(xml_node<> *node, double &val, ValueRequired required, tchar const *name)
+{
+	xmlGetDouble(node->first_attribute(name), val, required, name);
 }
 
 //////////////////////////////////////////////////////////////////////
@@ -532,4 +542,14 @@ static inline void xmlGetBool(xml_base<> *node, bool &val, ValueRequired require
 		error($("Missing value for %s\n"), name);
 		throw err_bad_input;
 	}
+}
+
+static inline void xmlGetBoolNode(xml_node<> *node, bool &val, ValueRequired required, tchar const *name)
+{
+	xmlGetBool(node->first_node(name), val, required, name);
+}
+
+static inline void xmlGetBoolAttr(xml_node<> *node, bool &val, ValueRequired required, tchar const *name)
+{
+	xmlGetBool(node->first_attribute(name), val, required, name);
 }
