@@ -288,7 +288,7 @@ struct Watcher
 				size_t len = (size_t)(f->FileNameLength / sizeof(wstring::value_type));
 				tstring filename = TString(wstring((wchar *)f->FileName, len));
 				mQueue.add(new FileEvent(f->Action, mFolder, filename));
-				mTimer.SetDelay(1);
+				mTimer.SetDelay(mSettleDelay);
 				f = (FILE_NOTIFY_INFORMATION *)((byte *)f + offset);
 			} while (offset != 0);
 			Read();
