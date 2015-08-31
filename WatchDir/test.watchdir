@@ -3,25 +3,27 @@
 <watcher>
 
   <watch>
+
     <!-- required: path to monitor -->
     <path>%USERPROFILE%\Projects\html</path>
 
-    <!-- optional: recursively monitor subfolders as well? (default is true) -->
-    <recursive>true</recursive>
-
     <!-- required: what activity triggers for this watch (read, write (&others)) -->
     <triggers>write</triggers>
+
+    <!-- optional: recursively monitor subfolders as well? (default is true) -->
+    <recursive>true</recursive>
 
     <!-- optional: wait for N seconds of idle time before kicking off commands (default is 0.25) -->
     <settleDelay>0.1</settleDelay>
 
     <!-- required: a set of commands to run -->
-    <!-- required: triggers - what triggers fire this command () -->
-    <command triggers="all" async="true">
+    <!-- required attr: triggers - what triggers fire this command () -->
+    <!-- optional attr: async - run next command without waiting for this one to complete (default is false) -->
+    <command triggers="all">
 
       <!-- required: one or more executables to fire -->
-      <!-- optional: async - run next command withouth waiting for this one to complete (default is false) -->
-      <exec async="true">autohotkey %USERPROFILE%\Documents\RefreshChrome.ahk</exec>
+      <!-- optional attr: async - run next exec without waiting for this one to complete (default is false) -->
+      <exec>autohotkey %USERPROFILE%\Documents\RefreshChrome.ahk</exec>
 
     </command>
     

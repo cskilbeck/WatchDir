@@ -161,7 +161,7 @@ struct Command
 			}
 			if(!mCommand->mAsync)
 			{
-				WaitForMultipleObjects(handles.size(), handles.data(), TRUE, INFINITE);
+				WaitForMultipleObjects((DWORD)handles.size(), handles.data(), TRUE, INFINITE);
 			}
 			return 0;
 		}
