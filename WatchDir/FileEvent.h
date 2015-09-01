@@ -2,9 +2,6 @@
 
 #pragma once
 
-#include <PathCch.h>
-#pragma comment(lib, "pathcch.lib")
-
 //////////////////////////////////////////////////////////////////////
 
 __declspec(selectany) Map<DWORD, tchar const *> changeNames =
@@ -17,6 +14,8 @@ __declspec(selectany) Map<DWORD, tchar const *> changeNames =
 };
 
 //////////////////////////////////////////////////////////////////////
+
+struct Watcher;
 
 struct FileEvent
 {
@@ -37,7 +36,10 @@ struct FileEvent
 		FA_ALL = (FA_ADDED | FA_REMOVED | FA_MODIFIED | FA_RENAMED)
 	};
 
+	Watcher *mWatcher;
+
 	DWORD mAction;
+	tstring mRelativePath;
 	tstring mFilePath;
 	tstring mNewFilePath;
 
@@ -46,10 +48,10 @@ struct FileEvent
 	tstring mName;
 	tstring mExt;
 
-	tstring mOldDrive;
-	tstring mOldDir;
-	tstring mOldName;
-	tstring mOldExt;
+	tstring mNewDrive;
+	tstring mNewDir;
+	tstring mNewName;
+	tstring mNewExt;
 
 	//////////////////////////////////////////////////////////////////////
 
@@ -60,7 +62,7 @@ struct FileEvent
 
 	//////////////////////////////////////////////////////////////////////
 
-	tstring OldName() const
+	tstring NewName() const
 	{
 		return (mAction == FILE_ACTION_RENAMED_NEW_NAME) ? mNewFilePath : tstring();
 	}
@@ -69,7 +71,7 @@ struct FileEvent
 
 	tstring Details() const
 	{
-		return Format($("%s %s %s"), mFilePath.c_str(), ChangeName(), OldName().c_str());
+		return Format($("%s %s %s"), mFilePath.c_str(), ChangeName(), NewName().c_str());
 	}
 
 	//////////////////////////////////////////////////////////////////////
@@ -135,17 +137,19 @@ struct FileEvent
 		tchar name[_MAX_FNAME];
 		tchar ext[_MAX_EXT];
 		_tsplitpath_s(mNewFilePath.c_str(), drive, dir, name, ext);
-		mOldDrive = drive;
-		mOldDir = dir;
-		mOldName = name;
-		mOldExt = ext;
+		mNewDrive = drive;
+		mNewDir = dir;
+		mNewName = name;
+		mNewExt = ext;
 	}
 
 	//////////////////////////////////////////////////////////////////////
 
-	FileEvent(DWORD action, tstring const &folder, tstring const &filepath)
+	FileEvent(DWORD action, tstring const &folder, tstring const &filepath, tstring const &watcherFolder, Watcher *watcher)
 		: mAction(action)
+		, mWatcher(watcher)
 	{
 		SetFilePath(folder, filepath);
+		mRelativePath = GetRelativePath(mFilePath, watcherFolder);
 	}
 };

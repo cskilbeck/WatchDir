@@ -29,6 +29,11 @@
 
 #include <Windows.h>
 #include <Shlobj.h>
+#include "Shlwapi.h"
+#include <PathCch.h>
+
+#pragma comment(lib, "pathcch.lib")
+#pragma comment(lib, "Shlwapi.lib")
 
 //////////////////////////////////////////////////////////////////////
 // libs
@@ -42,6 +47,7 @@
 #include "Types.h"
 #include "Map.h"
 #include "Errors.h"
+#include "Handle.h"
 #include "Util.h"
 #include "Queue.h"
 #include "Timer.h"

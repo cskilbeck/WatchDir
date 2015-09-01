@@ -1,8 +1,6 @@
 //////////////////////////////////////////////////////////////////////
 
 #pragma once
-#include "Shlwapi.h"
-#pragma comment(lib, "shlwapi.lib")
 
 //////////////////////////////////////////////////////////////////////
 
@@ -183,30 +181,7 @@ struct Watcher
 
 	//////////////////////////////////////////////////////////////////////
 
-	static DWORD GetFlags(string const &triggers)
-	{
-		vector<string> tokens;
-		tokenize(triggers.c_str(), tokens, " ;,", false);
-		DWORD flags = 0;
-		for(auto const &t : tokens)
-		{
-			auto c = std::find(condition_defs.begin(), condition_defs.end(), t);
-			if(c != condition_defs.end())
-			{
-				flags |= c->flag;
-			}
-			else
-			{
-				error("Unknown condition %s\n", t.c_str());
-				throw err_bad_input;
-			}
-		}
-		return flags;
-	}
-
-	//////////////////////////////////////////////////////////////////////
-
-	Watcher(xml_node<> *watch, int buffer_size = 16384)
+	Watcher(xml_node<> *watch, tchar const *watchDirFile, int buffer_size = 16384)
 		: mHandle(INVALID_HANDLE_VALUE)
 		, mDirHandle(INVALID_HANDLE_VALUE)
 		, mBufferSize(buffer_size)
@@ -222,10 +197,12 @@ struct Watcher
 		xml_node<> *includeNode = watch->first_node("include");
 		xml_node<> *excludeNode = watch->first_node("exclude");
 
-		if (pathNode == null || triggersNode == null || commandNode == null)
+		if (commandNode == null)
 		{
 			throw err_bad_input;
 		}
+
+		mFolder = (pathNode == null) ? GetFolder(watchDirFile) : ExpandEnvironment(TString(pathNode->val()));
 
 		if (includeNode != null)
 		{
@@ -237,8 +214,7 @@ struct Watcher
 			tokenize(TString(excludeNode->val()).c_str(), mExcludes, $(";"), false);
 		}
 
-		mFolder = ExpandEnvironment(TString(pathNode->val()));
-		mFlags = GetFlags(triggersNode->val());
+		mFlags = (triggersNode == null) ? Condition::writeFlags : Condition::GetFlags(triggersNode->val());
 
 		xmlGetBoolNode(watch, mRecurse, Optional, $("recursive"));
 		xmlGetDoubleNode(watch, mSettleDelay, Optional, $("settleDelay"));
@@ -249,6 +225,8 @@ struct Watcher
 			commandNode = commandNode->next_sibling();
 		}
 		mThreadHandle = mThread.native_handle();
+
+		tprintf("Folder: %s\n", mFolder.c_str());
 	}
 
 	//////////////////////////////////////////////////////////////////////
@@ -287,7 +265,7 @@ struct Watcher
 				offset = f->NextEntryOffset;
 				size_t len = (size_t)(f->FileNameLength / sizeof(wstring::value_type));
 				tstring filename = TString(wstring((wchar *)f->FileName, len));
-				mQueue.add(new FileEvent(f->Action, mFolder, filename));
+				mQueue.add(new FileEvent(f->Action, mFolder, filename, mFolder, this));
 				mTimer.SetDelay(mSettleDelay);
 				f = (FILE_NOTIFY_INFORMATION *)((byte *)f + offset);
 			} while (offset != 0);

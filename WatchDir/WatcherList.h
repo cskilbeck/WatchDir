@@ -53,7 +53,7 @@ struct WatcherList
 			}
 			while(watch != null)
 			{
-				mWatchers.push_back(new Watcher(watch));
+				mWatchers.push_back(new Watcher(watch, filename));
 				watch = watch->next_sibling();
 			}
 		}

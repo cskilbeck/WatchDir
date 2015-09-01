@@ -4,10 +4,10 @@
 
   <watch>
 
-    <!-- required: path to monitor -->
+    <!-- optional: path to monitor, default = '.' (eg location of .watchdir file) -->
     <path>%USERPROFILE%\Projects\html</path>
 
-    <!-- required: what activity triggers for this watch (read, write (&others)) -->
+    <!-- optional: what activity triggers for this watch (read, write (&others)), default = write -->
     <triggers>write</triggers>
 
     <!-- optional: recursively monitor subfolders as well? (default is true) -->
@@ -17,7 +17,7 @@
     <settleDelay>0.1</settleDelay>
 
     <!-- required: a set of commands to run -->
-    <!-- required attr: triggers - what triggers fire this command () -->
+    <!-- optional attr: triggers - what triggers fire this command (), default = all -->
     <!-- optional attr: async - run next command without waiting for this one to complete (default is false) -->
     <command triggers="all">
 
@@ -29,4 +29,11 @@
     
   </watch>
 
+  <watch>
+    <command>
+      <exec>echo %{basepath}%{relpath}</exec>
+    </command>
+  </watch>
+
 </watcher>
+

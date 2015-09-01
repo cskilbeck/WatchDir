@@ -376,43 +376,38 @@ static inline int CreateFolder(tchar const *name)
 static inline int LoadFile(tchar const *filename, ptr<byte> &buffer)
 {
 	int err = success;
-	FILE *f = null;
-	try
+
+	Handle hFile = CreateFile(filename,    // file to open
+					GENERIC_READ,          // open for reading
+					FILE_SHARE_READ,       // share for reading
+					NULL,                  // default security
+					OPEN_EXISTING,         // existing file only
+					FILE_ATTRIBUTE_NORMAL, // normal file
+					NULL);                 // no attr. template
+
+	if (!hFile.IsValid())
 	{
-		int e = _tfopen_s(&f, filename, "rb");
-		if(e != 0)
-		{
-			throw err_file_not_found;
-		}
-		if(fseek(f, 0, SEEK_END) != 0)
-		{
-			throw err_file_err;
-		}
-		long size = ftell(f);
-		if(size == -1)
-		{
-			throw err_file_err;
-		}
-		if(fseek(f, 0, SEEK_SET) != 0)
-		{
-			throw err_file_err;
-		}
-		buffer.reset(new byte[size + 1]);
-		if(fread(buffer.get(), sizeof(byte), (size_t)size, f) != size)
-		{
-			throw err_file_err;
-		}
-		byte *p = buffer.get();
-		p[size] = 0;
+		return err_file_not_found;
 	}
-	catch(int e)
+
+	LARGE_INTEGER fileSize;
+	if (!GetFileSizeEx(hFile, &fileSize) || fileSize.QuadPart > 0xffffffff)
 	{
-		err = e;
+		return err_file_err;
 	}
-	if(f != NULL)
+
+	ptr<byte> data(new byte[fileSize.QuadPart + 2]);
+	DWORD got;
+	if (!ReadFile(hFile, data.get(), (DWORD)fileSize.QuadPart, &got, NULL))
 	{
-		fclose(f);
+		return err_file_err;
 	}
+
+	data.get()[fileSize.QuadPart] = 0;		// 2 null bytes in case of wide chars
+	data.get()[fileSize.QuadPart + 1] = 0;
+
+	buffer.reset(data.release());
+
 	return err;
 }
 
@@ -553,3 +548,41 @@ static inline void xmlGetBoolAttr(xml_node<> *node, bool &val, ValueRequired req
 {
 	xmlGetBool(node->first_attribute(name), val, required, name);
 }
+
+//////////////////////////////////////////////////////////////////////
+
+static inline tstring GetFolder(tstring const &filename)
+{
+	tchar *name;
+	tchar buffer[4096];
+	DWORD len = GetFullPathName(filename.c_str(), _countof(buffer) - 1, buffer, &name);
+	if (len == 0)
+	{
+		return $("");
+	}
+	return tstring(buffer, name - buffer);
+}
+
+//////////////////////////////////////////////////////////////////////
+
+static inline tstring GetCanonicalPath(tstring const &folder)
+{
+	wstring fldr = WString(folder);
+	ptr<wchar> path(new wchar[32768]);
+	ptr<wchar> canonicalPath(new wchar[32768]);
+	memcpy(path.get(), fldr.c_str(), sizeof(wchar) * (fldr.size() + 1));
+	if (FAILED(PathCchCanonicalizeEx(canonicalPath.get(), 32768, path.get(), PATHCCH_ALLOW_LONG_PATHS)))
+	{
+		throw err_bad_input;
+	}
+	return TString(canonicalPath.get());
+}
+
+//////////////////////////////////////////////////////////////////////
+
+static inline tstring GetRelativePath(tstring const &folder, tstring const &file)
+{
+	tchar out[MAX_PATH];
+	return GetCanonicalPath(PathRelativePathTo(out, file.c_str(), GetFileAttributes(file.c_str()), folder.c_str(), GetFileAttributes(folder.c_str())) ? out : $("./"));
+}
+

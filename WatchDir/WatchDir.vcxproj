@@ -148,6 +148,7 @@
     <ClInclude Include="Errors.h" />
     <ClInclude Include="FileEvent.h" />
     <ClInclude Include="Command.h" />
+    <ClInclude Include="Handle.h" />
     <ClInclude Include="Map.h" />
     <ClInclude Include="Queue.h" />
     <ClInclude Include="stdafx.h" />
@@ -160,6 +161,8 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Args.cpp" />
+    <ClCompile Include="Command.cpp" />
+    <ClCompile Include="Condition.cpp" />
     <ClCompile Include="stdafx.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Create</PrecompiledHeader>
