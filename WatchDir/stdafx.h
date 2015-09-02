@@ -45,6 +45,7 @@
 // mine
 
 #include "Types.h"
+#include "Console.h"
 #include "Map.h"
 #include "Errors.h"
 #include "Handle.h"
