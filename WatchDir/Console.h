@@ -4,13 +4,10 @@
 
 //////////////////////////////////////////////////////////////////////
 
-void ConsoleWrite(tchar const *str);
-void ConsolePrintf(tchar const *fmt, ...);
-void ConsolePrintf(tstring const &fmt, ...);
-
-void ConsoleFWrite(FILE *f, tchar const *str);
-void ConsoleFPrintf(FILE *f, tchar const *fmt, ...);
-void ConsoleFPrintf(FILE *f, tstring const &fmt, ...);
+void ansi_write(tchar const *str);
+void ansi_fwrite(FILE *f, tchar const *str);
+void ansi_printf(FILE *f, tchar const *fmt, ...);
+void ansi_printf(FILE *f, tstring const &fmt, ...);
 
 #define ANSI_START	$("\x1b[")
 #define ANSI_END	$("m")
