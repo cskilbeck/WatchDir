@@ -7,10 +7,15 @@
 int _tmain(int argc, tchar *argv[])
 {
 	WatcherList watchers;
+	vector<tstring> bob = {
+		"hello",
+		"world",
+		"and",
+		"more"
+	};
+	ansi_write(join(bob, $(",")).c_str());
 
 	ansi_write($("\x1b[31m RED \x1b[32m GREEN \x1b[33m YELLOW \x1b[34m BLUE \x1b[35m MAGENTA \x1b[36m CYAN \x1b[37m WHITE \n"));
-
-	getchar();
 
 	ansi_write($("\x1b[2J"));
 

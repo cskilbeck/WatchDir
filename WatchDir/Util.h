@@ -586,3 +586,25 @@ static inline tstring GetRelativePath(tstring const &folder, tstring const &file
 	return GetCanonicalPath(PathRelativePathTo(out, file.c_str(), GetFileAttributes(file.c_str()), folder.c_str(), GetFileAttributes(folder.c_str())) ? out : $("./"));
 }
 
+//////////////////////////////////////////////////////////////////////
+
+template<typename T, typename U> inline tstring join(T start, T end, U const &separator)
+{
+	tstring r;
+	while(start != end)
+	{
+		r += *start++;
+		if(start != end)
+		{
+			r += separator;
+		}
+	}
+	return r;
+}
+
+//////////////////////////////////////////////////////////////////////
+
+template<typename T, typename U> inline tstring join(T const &container, U const &separator)
+{
+	return join(container.begin(), container.end(), separator);
+}

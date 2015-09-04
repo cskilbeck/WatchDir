@@ -6,7 +6,7 @@
 
 //////////////////////////////////////////////////////////////////////
 
-#if defined(_DEBUG)
+#if defined(_DEBUG) || 1
 static void Trace(tchar const *s, ...)
 {
 	va_list v;
@@ -34,9 +34,14 @@ struct Console
 		mParameters.reserve(16);
 	}
 
+	void AddParameter()
+	{
+		mParameters.push_back(Parameter());
+	}
+
 	void AddParameter(int p)
 	{
-		mParameters.push_back(p);
+		mParameters.push_back(Parameter(p));
 	}
 
 	void Write(void const *data, size_t amount)
@@ -72,7 +77,14 @@ struct Console
 		Trace($("Function: %c (%s), Parameters (%d) : "), c, f->second.mName, mParameters.size());
 		for (auto p : mParameters)
 		{
-			Trace($("%d "), p);
+			if(p.mIsSet)
+			{
+				Trace($("%d "), p);
+			}
+			else
+			{
+				Trace($("? "));
+			}
 		}
 		
 		if (f->second.mMinParameters > mParameters.size())
@@ -86,12 +98,29 @@ struct Console
 			return false;
 		}
 		Trace($("\n"));
-		(this->*func)();
+		bool rc = (this->*func)();
 		mParameters.clear();
-		return true;
+		return rc;
 	}
 
 private:
+
+	struct Parameter
+	{
+		int		mNumber;
+		bool	mIsSet;
+
+		Parameter()
+			: mIsSet(false)
+		{
+		}
+
+		Parameter(int n)
+			: mNumber(n)
+			, mIsSet(true)
+		{
+		}
+	};
 
 	static inline int bitswap(uint i, uint j, uint b)
 	{
@@ -202,9 +231,14 @@ private:
 		return false;
 	}
 
+	int IsParamSet(int n)
+	{
+		return mParameters.size() > n && mParameters[n].mIsSet;
+	}
+
 	int GetParam(int n, int def)
 	{
-		return (mParameters.size() > n) ? mParameters[n] : def;
+		return IsParamSet(n) ? mParameters[n].mNumber : def;
 	}
 
 	bool CursorUp()
@@ -263,23 +297,27 @@ private:
 	{
 		for (auto i : mParameters)
 		{
-			switch (i)
+			if(i.mIsSet)
 			{
-			case 0:	ResetAttr();	break;
-			case 1:	SetFGBold();	break;
-			case 2:	ClearFGBold();	break;
-			case 3:	SetBGBold();	break;
-			case 6:	ClearBGBold();	break;
-			default:
-				if (i >= 30 && i <= 37)
+				int n = i.mNumber;
+				switch(n)
 				{
-					SetFGColor(i - 30);
+					case 0:	ResetAttr();	break;
+					case 1:	SetFGBold();	break;
+					case 2:	ClearFGBold();	break;
+					case 3:	SetBGBold();	break;
+					case 6:	ClearBGBold();	break;
+					default:
+						if(n >= 30 && n <= 37)
+						{
+							SetFGColor(n - 30);
+						}
+						else if(n >= 40 && n <= 47)
+						{
+							SetBGColor(n - 40);
+						}
+						break;
 				}
-				else if (i >= 40 && i <= 47)
-				{
-					SetBGColor(i - 40);
-				}
-				break;
 			}
 		}
 		return true;
@@ -294,7 +332,7 @@ private:
 	}
 	bool HideCursor()
 	{
-		if (mParameters[0] == 25)
+		if (GetParam(0, 0) == 25)
 		{
 			CONSOLE_CURSOR_INFO info;
 			GetConsoleCursorInfo(mFileHandle, &info);
@@ -306,7 +344,7 @@ private:
 	}
 	bool ShowCursor()
 	{
-		if (mParameters[0] == 25)
+		if (GetParam(0, 0) == 25)
 		{
 			CONSOLE_CURSOR_INFO info;
 			GetConsoleCursorInfo(mFileHandle, &info);
@@ -319,13 +357,13 @@ private:
 
 	//////////////////////////////////////////////////////////////////////
 
-	FILE *		mFilePtr;
-	HANDLE		mFileHandle;
-	bool		mIsTTY;
-	int			mFileNum;
-	WORD		mAttr;
-	bool		mAttrChanged;
-	vector<int>	mParameters;
+	FILE *				mFilePtr;
+	HANDLE				mFileHandle;
+	bool				mIsTTY;
+	int					mFileNum;
+	WORD				mAttr;
+	bool				mAttrChanged;
+	vector<Parameter>	mParameters;
 };
 
 //////////////////////////////////////////////////////////////////////
@@ -391,8 +429,13 @@ struct AnsiParser
 		{
 			return ESC3;
 		}
-		if (iswspace(c) || c == ';')
+		if(iswspace(c))
 		{
+			return ESC2;
+		}
+		if(c == ';')
+		{
+			mFile.AddParameter();	// add an unset parameter
 			return ESC2;
 		}
 		if (isdigit(c))
@@ -400,13 +443,19 @@ struct AnsiParser
 			mNumber = c - '0';
 			return Digits;
 		}
+		mFile.ProcessCommand(c);	// must be a command with no parameters or a command following a spurious ;
 		return Begin;
 	}
 
 	int esc3(int c)
 	{
-		if (iswspace(c) || c == ';')
+		if(iswspace(c))
 		{
+			return ESC3;
+		}
+		if(c == ';')
+		{
+			mFile.AddParameter();	// add an unset parameter
 			return ESC3;
 		}
 		if (isdigit(c))
@@ -414,6 +463,7 @@ struct AnsiParser
 			mNumber = c - '0';
 			return Digits;
 		}
+		mFile.ProcessCommand(c);
 		return Begin;
 	}
 
@@ -434,17 +484,15 @@ struct AnsiParser
 			mNumber = mNumber * 10 + c - '0';
 			return Digits;
 		}
-		if (iswspace(c))
+		mFile.AddParameter(mNumber);
+		if(iswspace(c))
 		{
-			mFile.AddParameter(mNumber);
 			return PostDigits;
 		}
 		if (c == ';')
 		{
-			mFile.AddParameter(mNumber);
 			return ESC2;
 		}
-		mFile.AddParameter(mNumber);
 		mFile.ProcessCommand(c);
 		return Begin;
 	}
