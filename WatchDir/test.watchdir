@@ -29,11 +29,5 @@
     
   </watch>
 
-  <watch>
-    <command>
-      <exec>echo %{basepath}%{relpath}</exec>
-    </command>
-  </watch>
-
 </watcher>
 

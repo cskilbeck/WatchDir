@@ -81,7 +81,7 @@ void PrintUsage()
 {
 	option::printUsage(std::cerr, usage);
 
-	tprintf($("\nOptions specified:\n\n"));
+	ansi_printf($("\nOptions specified:\n\n"));
 	for(auto &o : options)
 	{
 		if(o.desc != null)
@@ -91,7 +91,7 @@ void PrintUsage()
 			{
 				s = Format($("=%s"), o.arg);
 			}
-			tprintf($("%s%s\n"), o.name, s.c_str());
+			ansi_printf($("%s%s\n"), o.name, s.c_str());
 		}
 	}
 }

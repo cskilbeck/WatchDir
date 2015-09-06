@@ -141,13 +141,13 @@ struct Watcher
 			}
 
 			// call commands once for each unique filepath
-			tprintf($("======================================================================\n"));
+			ansi_printf(ANSI_START ANSI_FG_YELLOW ANSI_END $("======================================================================\n") ANSI_RESET);
 			for (auto p : mQueue)
 			{
 				DWORD activity = folderActivity[p->mFilePath];
 				if (activity != 0)
 				{
-					tprintf($("\t%s (%04x)\n"), p->Details().c_str(), activity);
+					ansi_printf(ANSI_START ANSI_FG_CYAN ANSI_END $("%s (%04x)\n" ANSI_RESET), p->Details().c_str(), activity);
 					for (auto &cmd : mWatcher->mCommands)
 					{
 						if ((cmd.mFilter & activity) != 0)
@@ -226,7 +226,7 @@ struct Watcher
 		}
 		mThreadHandle = mThread.native_handle();
 
-		tprintf("Folder: %s\n", mFolder.c_str());
+		ansi_printf("Folder: %s\n", mFolder.c_str());
 	}
 
 	//////////////////////////////////////////////////////////////////////

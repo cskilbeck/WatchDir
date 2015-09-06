@@ -40,6 +40,6 @@ static inline tchar const *GetErrorText(int error)
 
 static inline void error_exit(int error)
 {
-	ftprintf(stderr, $("Exiting because %s.\n"), GetErrorText(error));
+	ansi_fprintf(stderr, $("Exiting because %s.\n"), GetErrorText(error));
 	exit(error);
 }

@@ -33,9 +33,6 @@ template<typename T> using ptr = std::unique_ptr<T>;
 
 const nullptr_t null = nullptr;
 
-static auto &tprintf = _tprintf;
-static auto &ftprintf = _ftprintf;
-
 #ifdef UNICODE
 static auto &tcin = std::wcin;
 static auto &tcout = std::wcout;

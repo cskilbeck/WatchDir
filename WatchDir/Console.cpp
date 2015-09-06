@@ -400,7 +400,12 @@ struct AnsiParser
 
 	void Flush(tchar const *end)
 	{
-		mFile.Write(mText, end - mText);
+		if(mText != null)
+		{
+			Trace($("Flush: [%s]\n"), tstring(mText, end - mText).c_str());
+			mFile.Write(mText, end - mText);
+			mText = null;
+		}
 	}
 
 	int begin(int c)
@@ -595,6 +600,24 @@ void ansi_fwrite(FILE *f, tchar const *str)
 void ansi_write(tchar const *str)
 {
 	ansi_fwrite(stdout, str);
+}
+
+//////////////////////////////////////////////////////////////////////
+
+void ansi_fprintf(FILE *f, tchar const *fmt, ...)
+{
+	va_list v;
+	va_start(v, fmt);
+	ansi_fwrite(f, Format_V(fmt, v).c_str());
+}
+
+//////////////////////////////////////////////////////////////////////
+
+void ansi_fprintf(FILE *f, tstring const &fmt, ...)
+{
+	va_list v;
+	va_start(v, fmt);
+	ansi_fwrite(f, Format_V(fmt.c_str(), v).c_str());
 }
 
 //////////////////////////////////////////////////////////////////////

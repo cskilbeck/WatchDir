@@ -52,7 +52,7 @@ void Exec::Execute(tstring const &folder, FileEvent *fileEvent, vector<HANDLE> &
 	STARTUPINFO si = { 0 };
 	PROCESS_INFORMATION pi = { 0 };
 	si.cb = sizeof(si);
-	tprintf($("\t\t%s..."), c.c_str());
+	ansi_printf($("%s..."), c.c_str());
 	if (!CreateProcess(NULL, cmd.get(), NULL, NULL, TRUE, 0, NULL, folder.c_str(), &si, &pi))
 	{
 		error($("error: %s\n"), GetLastErrorText().c_str());
@@ -64,11 +64,11 @@ void Exec::Execute(tstring const &folder, FileEvent *fileEvent, vector<HANDLE> &
 		if (!mAsync)
 		{
 			WaitForSingleObject(pi.hProcess, INFINITE);
-			tprintf($("complete\n"), mCommand.c_str());
+			ansi_printf($("complete\n"), mCommand.c_str());
 		}
 		else
 		{
-			tprintf($("spawned\n"));
+			ansi_printf($("spawned\n"));
 		}
 	}
 }

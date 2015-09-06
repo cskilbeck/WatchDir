@@ -72,7 +72,7 @@ struct WatcherList
 
 	bool StartWatching()
 	{
-		tprintf($("Waiting for activity on %d folders\n"), Count());
+		ansi_printf($("Waiting for activity on %d folders\n"), Count());
 		int n = 0;
 		for (auto &w : mWatchers)
 		{

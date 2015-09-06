@@ -6,8 +6,12 @@
 
 void ansi_write(tchar const *str);
 void ansi_fwrite(FILE *f, tchar const *str);
-void ansi_printf(FILE *f, tchar const *fmt, ...);
-void ansi_printf(FILE *f, tstring const &fmt, ...);
+
+void ansi_printf(tchar const *fmt, ...);
+void ansi_printf(tstring const &fmt, ...);
+
+void ansi_fprintf(FILE *f, tchar const *fmt, ...);
+void ansi_fprintf(FILE *f, tstring const &fmt, ...);
 
 #define ANSI_START	$("\x1b[")
 #define ANSI_END	$("m")
@@ -57,5 +61,3 @@ void ansi_printf(FILE *f, tstring const &fmt, ...);
 #define BG_DIM		ANSI_START		ANSI_BG_DIM			ANSI_END
 
 #define ANSI_RESET	ANSI_START		ANSI_FGBG_RESET		ANSI_END
-
-#define BOB ANSI_START ANSI_FG_RED ANSI_BG_DIM ANSI_BG_BLUE ANSI_END
