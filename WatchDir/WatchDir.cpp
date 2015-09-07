@@ -30,6 +30,5 @@ int _tmain(int argc, tchar *argv[])
 		getchar();
 	}
 #endif
-
 	return 0;
 }
